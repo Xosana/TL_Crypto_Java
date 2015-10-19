@@ -27,7 +27,7 @@ public class Certificat {
 
 	public X509Certificate x509;
 
-	Certificat(String nom, PaireClesRSA cle, int validityDays) {
+	Certificat(String nom, KeyPair cle, int validityDays) {
 		// Constructeur d’un certificat auto-signé avec
 		// CN = nom, la clé publique contenu dans PaireClesRSA,
 		// la durée de validité
@@ -39,12 +39,12 @@ public class Certificat {
 
 		X500Principal subjectName = new X500Principal("CN = "+nom);
 
-		X509v3CertificateBuilder certGen = new JcaX509v3CertificateBuilder(subjectName, serialNumber, startDate, expiryDate, subjectName, cle.Publique());
+		X509v3CertificateBuilder certGen = new JcaX509v3CertificateBuilder(subjectName, serialNumber, startDate, expiryDate, subjectName, cle.getPublic());
 
 		ContentSigner sigGen = null;
 
 		try {
-			sigGen = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(cle.Privee());
+			sigGen = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(cle.getPrivate());
 			x509 = new JcaX509CertificateConverter().getCertificate(certGen.build(sigGen));
 			x509.checkValidity(new Date());
 			x509.verify(x509.getPublicKey());
@@ -89,6 +89,10 @@ public class Certificat {
 
 	    JcaX509CertificateConverter conv = new JcaX509CertificateConverter();
 	    return new Certificat(conv.getCertificate(holder)); 
+	}
+	
+	public X509Certificate getX509(){
+		return x509;
 	}
 
 }
