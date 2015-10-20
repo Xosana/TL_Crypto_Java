@@ -8,7 +8,7 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-class Accept_clients implements Runnable {
+public class Accept_clients implements Runnable {
 
 	ServerSocket socketServer;
 	Socket socket;
@@ -17,7 +17,7 @@ class Accept_clients implements Runnable {
 	OutputStream NativeOut = null; 
 	ObjectOutputStream oos = null;
 
-	Accept_clients(ServerSocket s){
+	public Accept_clients(ServerSocket s){
 		socketServer = s;
 	}
 
@@ -50,7 +50,9 @@ class Accept_clients implements Runnable {
 
 
 				socket.close();
-
+				/*if(socket.isClosed()){
+					socketServer.close();
+				}*/
 			}
 		} catch (IOException | ClassNotFoundException e) { e.printStackTrace(); }
 	}

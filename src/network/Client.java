@@ -9,7 +9,7 @@ public class Client {
 	InputStream NativeIn = null; 
 	ObjectInputStream ois = null; 
 	OutputStream NativeOut = null; 
-	ObjectOutputStream oos = null; // Creation de socket (TCP) 
+	ObjectOutputStream oos = null;
 
 	public Client(String ServerName, int ServerPort) throws UnknownHostException, IOException, ClassNotFoundException{
 

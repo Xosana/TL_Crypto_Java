@@ -37,7 +37,7 @@ public class Certificat {
 
 		serialNumber = serialNumber.add(BigInteger.ONE); // Numéro de série du certificat
 
-		X500Principal subjectName = new X500Principal("CN = "+nom);
+		X500Principal subjectName = new X500Principal("CN = "+nom); // Nom de l'équipement
 
 		X509v3CertificateBuilder certGen = new JcaX509v3CertificateBuilder(subjectName, serialNumber, startDate, expiryDate, subjectName, cle.getPublic());
 
@@ -52,9 +52,9 @@ public class Certificat {
 				| NoSuchProviderException | SignatureException 
 				| OperatorCreationException e) { e.printStackTrace(); }
 
-
 	}
 
+	
 	// 2ème constructeur permettant de convertir le type x509certificate en type Certificat
 	public Certificat(X509Certificate certificate) {
 		x509 = certificate; 
