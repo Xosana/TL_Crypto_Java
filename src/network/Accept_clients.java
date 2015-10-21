@@ -13,7 +13,6 @@ import java.security.cert.X509Certificate;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
 
 import equipment.Certificat;
-import equipment.Certificat_OLD;
 
 public class Accept_clients implements Runnable {
 
