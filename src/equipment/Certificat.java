@@ -37,6 +37,8 @@ public class Certificat {
 			throws Exception
 	{
 		Security.addProvider(new BouncyCastleProvider());
+		serialNumber = serialNumber.add(BigInteger.ONE); // Numéro de série du certificat
+
 		X509v1CertificateBuilder certBldr = new JcaX509v1CertificateBuilder(
 				new X500Principal("CN="+name),
 				serialNumber,
@@ -63,6 +65,8 @@ public class Certificat {
 					throws Exception
 	{
 		Security.addProvider(new BouncyCastleProvider());
+		serialNumber = serialNumber.add(BigInteger.ONE); // Numéro de série du certificat
+
 		X509v3CertificateBuilder certBldr = new JcaX509v3CertificateBuilder(
 				csr.getSubject(),
 				serialNumber,

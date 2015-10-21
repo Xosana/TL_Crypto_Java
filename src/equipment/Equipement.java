@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.*;
@@ -21,12 +22,16 @@ public class Equipement {
 	private X509Certificate monCert; // Certificat auto-signé.
 	private String monNom; // Identité de l’equipement.
 	private int monPort; // Numéro de port d’écoute.
+	private static  BigInteger id = BigInteger.ZERO;
+
 	
 	public Equipement (String nom, int port, boolean b) throws Exception {
 		// Constructeur de l’equipement identifié par nom
 		// et qui « écoutera » sur le port port.
 		monNom = nom;
 		monPort = port;
+		id = id.add(BigInteger.ONE); // Numéro de série du certificat
+
 
 		// Initialisation de la structure pour la generation de clé
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
@@ -53,6 +58,7 @@ public class Equipement {
 	public void affichage() throws Exception {
 		// Ensemble des info de l’équipement
 		System.out.println(monNom);
+		System.out.println(id);
 		System.out.println(monPort);
 		System.out.println(maCle.getPublic());
 		System.out.println(monCert);
