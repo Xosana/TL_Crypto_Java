@@ -1,4 +1,4 @@
-package equipment;
+package com.equipment;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -12,17 +12,18 @@ import java.security.cert.X509Certificate;
 
 import javax.security.auth.x500.X500Principal;
 
-import network.Accept_clients;
+import com.network.Accept_clients;
 
 
 
 public class Equipement {
 
-	private KeyPair maCle; // Paire de clés de l’equipement.
+	private KeyPair maCle; // Paire de clés de l’équipement.
 	private X509Certificate monCert; // Certificat auto-signé.
-	private String monNom; // Identité de l’equipement.
+	private String monNom; // Identité de l’équipement.
 	private int monPort; // Numéro de port d’écoute.
-	private static  BigInteger id = BigInteger.ZERO;
+	private static  BigInteger bi = BigInteger.ZERO; // Compteur d'Id
+	public BigInteger id; // Id de l'équipement
 
 	
 	public Equipement (String nom, int port, boolean b) throws Exception {
@@ -30,21 +31,21 @@ public class Equipement {
 		// et qui « écoutera » sur le port port.
 		monNom = nom;
 		monPort = port;
-		id = id.add(BigInteger.ONE); // Numéro de série du certificat
-
+		
+		bi = bi.add(BigInteger.ONE); 
+		id = bi;
 
 		// Initialisation de la structure pour la generation de clé
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
 
-		// Définition de la taille de cle 512 bits
 		if(kpg != null){
-			kpg.initialize(512, new SecureRandom());
+			kpg.initialize(512, new SecureRandom()); // Définition de la taille de cle 512 bits
 			maCle = kpg.generateKeyPair(); // Génération de la paire de clés
 		}
 
-		monCert = Certificat.buildSelfCert(nom, maCle, 10);
+		// Auto-certification de la clé publique
+		monCert = Certificat.buildSelfCert(id+" "+monNom, maCle, 10);
 		Certificat.verifX509(monCert, maCle.getPublic());
-
 	}
 
 	public void affichage_da() {
@@ -68,22 +69,13 @@ public class Equipement {
 		return monCert.getIssuerX500Principal();
 	}
 	
-	public X509Certificate getCert(){
+	public X509Certificate getX509(){
 		return monCert;
 	}
 	
-	public PublicKey getKPub(){
-		return maCle.getPublic(); // Retourne la clé publique de l'équipement
-	}
-	
-	public KeyPair getKP(){
-		return maCle;
-	}
-	
-	
 	public void setServeur() throws IOException{
 		ServerSocket serverSocket = new ServerSocket(monPort); // Creation de socket (TCP)
-		Thread t = new Thread(new Accept_clients(serverSocket, maCle.getPrivate())); // Gestion des connexions par un thread
+		Thread t = new Thread(new Accept_clients(serverSocket, maCle.getPrivate(), this)); // Gestion des connexions par un thread
 		t.start();
 		System.out.println(monNom+" est serveur");
 	}
@@ -109,10 +101,14 @@ public class Equipement {
 		// Emission d’un String
 		oos.writeObject(strCSR); 
 		oos.flush();
+		System.out.println("CSR est envoyé");
+
 
 		// Reception d’un String
-		String res = (String) ois.readObject(); 
-		System.out.println(res);
+		String pemcert = (String) ois.readObject(); 
+		X509Certificate intermX509 = Certificat.pEMtoX509(pemcert);
+		System.out.println("Réception du certificat de la Kpub");
+		System.out.println(intermX509);
 
 		// Fermeture des flux evolues et natifs
 		ois.close();

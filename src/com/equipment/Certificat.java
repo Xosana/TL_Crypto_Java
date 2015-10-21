@@ -1,4 +1,4 @@
-package equipment;
+package com.equipment;
 
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -9,6 +9,7 @@ import java.util.Date;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.*;
 import org.bouncycastle.cert.jcajce.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -18,6 +19,7 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCSException;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
@@ -40,11 +42,11 @@ public class Certificat {
 		serialNumber = serialNumber.add(BigInteger.ONE); // Numéro de série du certificat
 
 		X509v1CertificateBuilder certBldr = new JcaX509v1CertificateBuilder(
-				new X500Principal("CN="+name),
+				new X500Principal("CN = "+name),
 				serialNumber,
 				new Date(System.currentTimeMillis()),
 				new Date(System.currentTimeMillis() + 1000*60*60*24*validityDays),
-				new X500Principal("CN="+name+"'s Root Certificate"),
+				new X500Principal("CN = "+name),
 				keyPair.getPublic());
 		ContentSigner signer = new JcaContentSignerBuilder("SHA1withRSA")
 				.setProvider("BC").build(keyPair.getPrivate());
@@ -60,7 +62,7 @@ public class Certificat {
 	 * @return X509Certificate
 	 * @throws Exception
 	 */
-	public static X509Certificate cSRtoX509(
+	public static X509Certificate cSRtoX509( X500Name issuer,
 			JcaPKCS10CertificationRequest csr, PrivateKey caKey, int validityDays)
 					throws Exception
 	{
@@ -68,7 +70,7 @@ public class Certificat {
 		serialNumber = serialNumber.add(BigInteger.ONE); // Numéro de série du certificat
 
 		X509v3CertificateBuilder certBldr = new JcaX509v3CertificateBuilder(
-				csr.getSubject(),
+				issuer,
 				serialNumber,
 				new Date(System.currentTimeMillis()),
 				new Date(System.currentTimeMillis() + 1000*60*60*24*validityDays),
@@ -192,9 +194,9 @@ public class Certificat {
 	public static JcaPKCS10CertificationRequest pEMtoCSR(String pemCSR) throws Exception {
 		StringReader sr = new StringReader(pemCSR);
 		PEMParser parser = new PEMParser(sr);
-		JcaPKCS10CertificationRequest certReq = (JcaPKCS10CertificationRequest) parser.readObject();
+		PKCS10CertificationRequest certReq = (PKCS10CertificationRequest) parser.readObject();
 		parser.close();
-		return certReq; 
+		return new JcaPKCS10CertificationRequest(certReq.getEncoded()); 
 	}
 
 

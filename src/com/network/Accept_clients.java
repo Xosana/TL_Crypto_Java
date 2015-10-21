@@ -1,4 +1,4 @@
-package network;
+package com.network;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,23 +10,27 @@ import java.net.Socket;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 
+import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
 
-import equipment.Certificat;
+import com.equipment.Certificat;
+import com.equipment.Equipement;
 
 public class Accept_clients implements Runnable {
 
+	Equipement eqpt;
 	ServerSocket socketServer;
-	PrivateKey caKey;
+	PrivateKey privKey;
 	Socket socket;
 	InputStream NativeIn = null; 
 	ObjectInputStream ois = null; 
 	OutputStream NativeOut = null; 
 	ObjectOutputStream oos = null;
 
-	public Accept_clients(ServerSocket s, PrivateKey k){
+	public Accept_clients(ServerSocket s, PrivateKey k, Equipement eq){
 		socketServer = s;
-		caKey = k;
+		privKey = k;
+		eqpt = eq;
 	}
 
 	@Override
@@ -47,18 +51,18 @@ public class Accept_clients implements Runnable {
 				try {
 					JcaPKCS10CertificationRequest csr = Certificat.pEMtoCSR(pemCSR);
 					if(Certificat.verifCSR(csr)){
-						X509Certificate intermX509 = Certificat.cSRtoX509(csr, caKey, 10);
-						System.out.println(intermX509);
+						X509Certificate intermX509 = Certificat.cSRtoX509(X500Name.getInstance(eqpt.getX509().getIssuerX500Principal().getEncoded()), csr, privKey, 10);
+						
+						// Emission du certificat
+						oos.writeObject(Certificat.x509toPEM(intermX509)); 
+						oos.flush();
+						//System.out.println(intermX509);
 					}
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				
-				
-				// Emission d’un String
-				oos.writeObject("Au revoir"); 
-				oos.flush();
 
 				// Fermeture des flux evolues et natifs
 				ois.close();
@@ -75,6 +79,7 @@ public class Accept_clients implements Runnable {
 		
 		try {
 			socketServer.close();
+			System.out.println("Server.Close");
 		} catch (IOException e) {
 			// Do nothing
 		}
