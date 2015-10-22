@@ -8,8 +8,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.*;
 import java.security.cert.X509Certificate;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.ArrayList;
 
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
@@ -22,9 +21,10 @@ public class Equipement {
 	private KeyPair maCle; // Paire de clés de l’équipement
 	private X509Certificate monCert; // Certificat auto-signé
 
-	private HashMap<String, X509Certificate> ca;
-	private HashMap<String, X509Certificate> da;
+	private ArrayList<X509Certificate> ca;
+	private ArrayList<X509Certificate> da;
 
+	private ServerSocket initServerSocket; // Serveur d'écoute de reconnaissance mutuelle
 	private ServerSocket serverSocket; // Serveur d'écoute de l'équipement
 	private Socket socket;
 	private InputStream NativeIn; // Flux natif entrant
@@ -54,9 +54,12 @@ public class Equipement {
 		Certificat.verifX509(monCert, maCle.getPublic());
 
 		// Initialisation de CA et DA
-		ca = new HashMap<String, X509Certificate>();
-		da = new HashMap<String, X509Certificate>();
+		ca = new ArrayList<X509Certificate>();
+		da = new ArrayList<X509Certificate>();
 
+		// Initialisation du serveur d'écoute sur monPort
+		serverSocket = new ServerSocket(monPort);
+		
 		// Initialisation des flux
 		NativeIn = null; 
 		ois = null; 
@@ -65,19 +68,15 @@ public class Equipement {
 	}
 
 	public void affichage_da() {
-		Iterator<String> keySetIterator = da.keySet().iterator(); 
-		while(keySetIterator.hasNext()){ 
-			String key = keySetIterator.next(); 
-			System.out.println("key: " + key + " value: " + da.get(key)); 
+		for(X509Certificate x509: da ){
+			System.out.println(x509.getSubjectX500Principal().toString());
 		}
 	}
 
 	public void affichage_ca() {
-		Iterator<String> keySetIterator = ca.keySet().iterator(); 
-		while(keySetIterator.hasNext()){ 
-			String key = keySetIterator.next(); 
-			System.out.println("key: " + key + " value: " + ca.get(key)); 
-		}	
+		for(X509Certificate x509: ca ){
+			System.out.println(x509.getIssuerX500Principal().toString());
+		}
 	}
 
 	public void affichage() {
@@ -103,12 +102,12 @@ public class Equipement {
 	public void initServer() throws IOException, ClassNotFoundException{
 		System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
 		
-		serverSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisations
+		initServerSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisations
 
 		new Thread() {
 			public void run(){
 				try {
-					socket = serverSocket.accept();
+					socket = initServerSocket.accept();
 
 					// Création des flux natifs et évolués
 					NativeIn = socket.getInputStream(); 
@@ -191,7 +190,7 @@ public class Equipement {
 		// Fermeture de la connexion
 		socket.close(); 
 		
-		ca.put(intermX509.getSubjectDN().toString(), intermX509);
+		ca.add(intermX509);
 	}
 
 }

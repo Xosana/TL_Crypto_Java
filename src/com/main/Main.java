@@ -1,7 +1,5 @@
 package com.main;
 
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -143,8 +141,10 @@ public class Main {
 				}
 			} else if (m.equals("ca_list")) {
 				System.out.println("Liste des certificats contenus dans CA: ");
+				e.affichage_ca();
 			} else if (m.equals("da_list")) {
 				System.out.println("Liste des certificats contenus dans DA: ");
+				e.affichage_da();
 			} else {
 				System.out.println("Commande inconnue, utilisez 'help' pour plus d'informations");
 			}
@@ -152,9 +152,11 @@ public class Main {
 	}
 
 	public static void connect_equipments(Equipement e1, Equipement e2) throws Exception {
-		System.out.println("Intialisation de la procédure de connexion de " + e1.getNom() +
-				" à l'équipement " + e2.getNom());
+		System.out.println("Reconnaissance mutuelle de l'équipement " + e1.getNom() +
+				" et de l'équipement " + e2.getNom());
 		e2.initServer();
 		e1.askCSR();
+		e1.initServer();
+		e2.askCSR();
 	}
 }
