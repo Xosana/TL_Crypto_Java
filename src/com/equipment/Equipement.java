@@ -10,18 +10,27 @@ import java.net.Socket;
 import java.security.*;
 import java.security.cert.X509Certificate;
 
-import com.network.Accept_clients;
-
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
 
 
 public class Equipement {
 
-	private KeyPair maCle; // Paire de clés de l’équipement.
-	private X509Certificate monCert; // Certificat auto-signé.
-	private String monNom; // Identité de l’équipement.
-	private int monPort; // Numéro de port d’écoute.
+
+	
+	private String monNom; // Identité de l’équipement
+	private int monPort; // Numéro de port d’écoute
+	private KeyPair maCle; // Paire de clés de l’équipement
+	private X509Certificate monCert; // Certificat auto-signé
 	private static  BigInteger bi = BigInteger.ZERO; // Compteur d'Id
 	private BigInteger id; // Id de l'équipement
+	
+	private ServerSocket serverSocket; // Serveur d'écoute de l'équipement
+	private Socket socket;
+	private InputStream NativeIn; // Flux natif entrant
+	private ObjectInputStream ois; // Flux évolué entrant
+	private OutputStream NativeOut; // Flux natif sortant
+	private ObjectOutputStream oos; // Flux évolué sortant
 
 	
 	public Equipement (String nom, int port) throws Exception {
@@ -29,21 +38,28 @@ public class Equipement {
 		// et qui « écoutera » sur le port port.
 		monNom = nom;
 		monPort = port;
+		serverSocket = new ServerSocket(monPort); // Creation de socket (TCP)
 		
+		// Mise en place d'un identifiant d'équipement
 		bi = bi.add(BigInteger.ONE); 
 		id = bi;
 
 		// Initialisation de la structure pour la generation de clé
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-
 		if(kpg != null){
 			kpg.initialize(512, new SecureRandom()); // Définition de la taille de cle 512 bits
 			maCle = kpg.generateKeyPair(); // Génération de la paire de clés
 		}
 
 		// Auto-certification de la clé publique
-		monCert = Certificat.buildSelfCert(id+" "+monNom, maCle, 10);
+		monCert = Certificat.buildSelfCert(id+"-"+monNom, maCle, 10);
 		Certificat.verifX509(monCert, maCle.getPublic());
+		
+		// Initialisation des flux
+		NativeIn = null; 
+		ois = null; 
+		NativeOut = null; 
+		oos = null;
 	}
 
 	public void affichage_da() {
@@ -75,45 +91,74 @@ public class Equipement {
 		return monNom;
 	}
 	
+	public int getPort(){
+		return monPort;
+	}
+	
 	public X509Certificate getX509(){
 		return monCert;
 	}
 	
-	public void setServeur() throws IOException{
-		ServerSocket serverSocket = new ServerSocket(monPort); // Creation de socket (TCP)
-		Thread t = new Thread(new Accept_clients(serverSocket, maCle.getPrivate(), this)); // Gestion des connexions par un thread
-		t.start();
-		System.out.println(monNom+" est serveur");
+	public void initServer() throws IOException, ClassNotFoundException{
+		System.out.println("Initialisation de l'équipement "+id.toString()+"-"+monNom+" en tant que serveur");
+		System.out.println("en attente de connexion...");
+		socket = serverSocket.accept(); // Attente de connexion
+		
+		System.out.println("Un équipement s'est connecté");
+		
+		// Création des flux natifs et évolués
+		NativeIn = socket.getInputStream(); 
+		ois = new ObjectInputStream(NativeIn); 
+		NativeOut = socket.getOutputStream(); 
+		oos = new ObjectOutputStream(NativeOut);
+		
+		// Récupération du CSR
+		String pemCSR = (String) ois.readObject(); 
+		System.out.println("Une demande CSR a été reçue");
+		
+		try {
+			JcaPKCS10CertificationRequest csr = Certificat.pEMtoCSR(pemCSR);
+			
+			// Vérification du CSR
+			if(Certificat.verifCSR(csr)){
+				System.out.println("La demande CSR a été vérifiée");
+				
+				System.out.println("Certification de la clé publique");
+				
+				// Certification de la clé publique
+				X509Certificate intermX509 = Certificat.cSRtoX509(X500Name.getInstance(
+						monCert.getIssuerX500Principal().getEncoded()), csr, maCle.getPrivate(), 10);
+				
+				// Emission du certificat
+				oos.writeObject(Certificat.x509toPEM(intermX509)); 
+				oos.flush();
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
-	public void sendCSR() throws Exception{
-		Socket clientSocket = null; 
-		InputStream NativeIn = null; 
-		ObjectInputStream ois = null; 
-		OutputStream NativeOut = null; 
-		ObjectOutputStream oos = null;
-		
-		clientSocket = new Socket("localHost",monPort); 
+	public void askCSR(int port) throws Exception{
+		socket = new Socket("localHost",port); 
 
-		// Création des flux natifs et evolues
-		NativeOut = clientSocket.getOutputStream(); 
+		// Création des flux natifs et évolués
+		NativeOut = socket.getOutputStream(); 
 		oos = new ObjectOutputStream(NativeOut); 
-		NativeIn = clientSocket.getInputStream(); 
+		NativeIn = socket.getInputStream(); 
 		ois = new ObjectInputStream(NativeIn);
 
-		// Création du CSR
+		// Création et envoi du CSR
 		String strCSR = Certificat.cSRtoPEM(Certificat.buildCSR(monCert.getSubjectX500Principal(), maCle));
-		
-		// Emission d’un String
 		oos.writeObject(strCSR); 
 		oos.flush();
-		System.out.println("CSR est envoyé");
+		System.out.println("Demande de CSR");
 
 
-		// Reception d’un String
+		// Reception de la certification
 		String pemcert = (String) ois.readObject(); 
 		X509Certificate intermX509 = Certificat.pEMtoX509(pemcert);
-		System.out.println("Réception du certificat de la Kpub");
+		System.out.println("Réception de la certification de la clé publique");
 		System.out.println(intermX509);
 
 		// Fermeture des flux evolues et natifs
@@ -123,7 +168,7 @@ public class Equipement {
 		NativeOut.close();
 
 		// Fermeture de la connexion
-		clientSocket.close(); 
+		socket.close(); 
 	}
 
 }
