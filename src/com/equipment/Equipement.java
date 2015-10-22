@@ -31,6 +31,8 @@ public class Equipement {
 	private ObjectInputStream ois; // Flux évolué entrant
 	private OutputStream NativeOut; // Flux natif sortant
 	private ObjectOutputStream oos; // Flux évolué sortant
+	
+	private static final int INIT_PORT = 7777;
 
 
 	public Equipement (String nom, int port) throws Exception {
@@ -101,7 +103,7 @@ public class Equipement {
 	public void initServer() throws IOException, ClassNotFoundException{
 		System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
 		
-		serverSocket = new ServerSocket(7777); // Creation du ServerSocket sur un port spécifique aux initialisations
+		serverSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisations
 
 		new Thread() {
 			public void run(){

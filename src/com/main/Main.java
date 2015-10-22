@@ -1,5 +1,7 @@
 package com.main;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -23,7 +25,7 @@ public class Main {
 	 * @throws Exception 
 	 */
 	public static void main(String[] args) throws Exception {
-		
+
 		System.out.println("Bienvenue dans la meilleur projet du monde!");
 
 		sc = new Scanner(System.in);
@@ -82,7 +84,18 @@ public class Main {
 					System.out.println("Utilisez 'go_to [nom d'un équipement]'");
 				}
 			} else if (m.equals("help")) {
-				System.out.println("Commandes disponibles: quit, list, go_to [nom d'un équipement], add_equipment, help.");
+				System.out.println("Commandes disponibles: quit, list, go_to [nom d'un équipement], add_equipment, help, demo.");
+			} else if (m.equals("demo")) {
+				Equipement e1 = new Equipement("e1", 11111);
+				Equipement e2 = new Equipement("e2", 22222);
+				Equipement e3 = new Equipement("e3", 33333);
+				equipements.add(e1);
+				equipements.add(e2);
+				equipements.add(e3);
+				System.out.println("Création de l'équipement e1 ayant pour port 11111");
+				System.out.println("Création de l'équipement e2 ayant pour port 22222");
+				System.out.println("Création de l'équipement e3 ayant pour port 33333");
+				connect_equipments(e1, e2);
 			} else {
 				System.out.println("Commande inconnue, utilisez 'help' pour plus d'informations");
 			}
@@ -116,9 +129,7 @@ public class Main {
 						if (e2.getNom().equals(commands[1])) {
 							wentTo = true;
 							if (e2 != e) {
-								System.out.println("Intialisation de la procédure de connexion à l'équipement " + commands[1]);
-								e2.initServer();
-								e.askCSR(e2.getPort());
+								connect_equipments(e, e2);
 							} else {
 								System.out.println("Arrêtez de faire le malin!");
 							}
@@ -138,5 +149,12 @@ public class Main {
 				System.out.println("Commande inconnue, utilisez 'help' pour plus d'informations");
 			}
 		}		
+	}
+
+	public static void connect_equipments(Equipement e1, Equipement e2) throws Exception {
+		System.out.println("Intialisation de la procédure de connexion de " + e1.getNom() +
+				" à l'équipement " + e2.getNom());
+		e2.initServer();
+		e1.askCSR();
 	}
 }
