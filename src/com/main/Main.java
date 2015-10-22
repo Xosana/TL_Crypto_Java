@@ -1,6 +1,5 @@
 package com.main;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Scanner;
@@ -25,7 +24,7 @@ public class Main {
 	 * @throws Exception 
 	 */
 	public static void main(String[] args) throws Exception {
-
+		
 		System.out.println("Bienvenue dans la meilleur projet du monde!");
 
 		sc = new Scanner(System.in);
@@ -104,7 +103,6 @@ public class Main {
 			message = sc.next();
 			commands = message.split(" ");
 			m = commands[0];
-
 			if (m.equals("back")) {
 				System.out.println("Retour au menu d'accueil");
 				ctn = false;
