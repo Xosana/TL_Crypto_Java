@@ -8,19 +8,22 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.*;
 import java.security.cert.X509Certificate;
+import java.util.HashMap;
+import java.util.Iterator;
 
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
 
 
 public class Equipement {
-
-
 	
 	private String monNom; // Identité de l’équipement
 	private int monPort; // Numéro de port d’écoute
 	private KeyPair maCle; // Paire de clés de l’équipement
 	private X509Certificate monCert; // Certificat auto-signé
+	
+	private HashMap<String, X509Certificate> ca;
+	private HashMap<String, X509Certificate> da;
 
 	private ServerSocket serverSocket; // Serveur d'écoute de l'équipement
 	private Socket socket;
@@ -37,7 +40,6 @@ public class Equipement {
 		monPort = port;
 		serverSocket = new ServerSocket(monPort); // Creation de socket (TCP)
 		
-		
 		// Initialisation de la structure pour la generation de clé
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
 		if(kpg != null){
@@ -49,6 +51,10 @@ public class Equipement {
 		monCert = Certificat.buildSelfCert(monNom, maCle, 10);
 		Certificat.verifX509(monCert, maCle.getPublic());
 		
+		// Initialisation de CA et DA
+		ca = new HashMap<String, X509Certificate>();
+		da = new HashMap<String, X509Certificate>();
+		
 		// Initialisation des flux
 		NativeIn = null; 
 		ois = null; 
@@ -57,8 +63,11 @@ public class Equipement {
 	}
 
 	public void affichage_da() {
-		// Affichage de la liste des équipements de DA
-	}
+		Iterator<String> keySetIterator = da.keySet().iterator(); 
+		while(keySetIterator.hasNext()){ 
+			String key = keySetIterator.next(); 
+			System.out.println("key: " + key + " value: " + da.get(key)); }
+		}
 
 	public void affichage_ca() {
 		// Affichage de la liste des équipements de CA
