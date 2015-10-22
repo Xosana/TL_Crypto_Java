@@ -54,7 +54,7 @@ public class Equipement {
 		// Affichage de la liste des équipements de CA
 	}
 
-	public void affichage() throws Exception {
+	public void affichage() {
 		// Ensemble des info de l’équipement
 		System.out.println(monNom);
 		System.out.println(id);
