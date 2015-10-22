@@ -38,7 +38,7 @@ public class Equipement {
 		// et qui « écoutera » sur le port port.
 		monNom = nom;
 		monPort = port;
-		serverSocket = new ServerSocket(monPort); // Creation de socket (TCP)
+		//serverSocket = new ServerSocket(monPort); // Creation de socket (TCP)
 
 		// Initialisation de la structure pour la generation de clé
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
@@ -100,14 +100,13 @@ public class Equipement {
 
 	public void initServer() throws IOException, ClassNotFoundException{
 		System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
-		System.out.println("en attente de connexion...");
+		
+		serverSocket = new ServerSocket(7777); // Creation du ServerSocket sur un port spécifique aux initialisations
 
 		new Thread() {
 			public void run(){
 				try {
 					socket = serverSocket.accept();
-
-					System.out.println("Un équipement s'est connecté");
 
 					// Création des flux natifs et évolués
 					NativeIn = socket.getInputStream(); 
@@ -117,24 +116,37 @@ public class Equipement {
 
 					// Récupération du CSR
 					String pemCSR = (String) ois.readObject(); 
-					System.out.println("Une demande CSR a été reçue");
+					System.out.println("L'équipement "+monNom+" reçoit la demande");
 
 
 					JcaPKCS10CertificationRequest csr = Certificat.pEMtoCSR(pemCSR);
 
 					// Vérification du CSR
 					if(Certificat.verifCSR(csr)){
-						System.out.println("La demande CSR a été vérifiée");
+						System.out.println("L'équipement "+monNom+" vérifie la demande avec succès");
 
-						System.out.println("Certification de la clé publique");
+						System.out.println("L'équipement "+monNom+" génère et envoie la certification de la clé publique");
 
 						// Certification de la clé publique
 						X509Certificate intermX509 = Certificat.cSRtoX509(X500Name.getInstance(
 								monCert.getIssuerX500Principal().getEncoded()), csr, maCle.getPrivate(), 10);
 
+						System.out.println("L'équipement "+monNom+" envoie le certificat");
 						// Emission du certificat
 						oos.writeObject(Certificat.x509toPEM(intermX509)); 
 						oos.flush();
+						
+						// Fermeture des flux evolues et natifs
+						ois.close();
+						oos.close(); 
+						NativeIn.close(); 
+						NativeOut.close();
+						
+						try {
+							serverSocket.close();
+						} catch (IOException e) {
+							// Do nothing
+						}
 					}
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
@@ -145,8 +157,8 @@ public class Equipement {
 
 	}
 
-	public void askCSR(int port) throws Exception{
-		socket = new Socket("localHost",port); 
+	public void askCSR() throws Exception{
+		socket = new Socket("localHost",7777); // Connection sur le port d'initialisation
 
 		// Création des flux natifs et évolués
 		NativeOut = socket.getOutputStream(); 
@@ -154,18 +166,19 @@ public class Equipement {
 		NativeIn = socket.getInputStream(); 
 		ois = new ObjectInputStream(NativeIn);
 
+		System.out.println("L'équipement "+monNom+" envoie la demande de certification de sa clé publique");
+		
 		// Création et envoi du CSR
 		String strCSR = Certificat.cSRtoPEM(Certificat.buildCSR(monCert.getSubjectX500Principal(), maCle));
 		oos.writeObject(strCSR); 
 		oos.flush();
-		System.out.println("Demande de CSR");
 
 
 		// Reception de la certification
 		String pemcert = (String) ois.readObject(); 
 		X509Certificate intermX509 = Certificat.pEMtoX509(pemcert);
-		System.out.println("Réception de la certification de la clé publique");
-		System.out.println(intermX509);
+		
+		System.out.println("L'équipement "+monNom+" reçoie la certification de sa clé publique");
 
 		// Fermeture des flux evolues et natifs
 		ois.close();
@@ -175,6 +188,8 @@ public class Equipement {
 
 		// Fermeture de la connexion
 		socket.close(); 
+		
+		ca.put(intermX509.getSubjectDN().toString(), intermX509);
 	}
 
 }

@@ -42,11 +42,11 @@ public class Certificat {
 		serialNumber = serialNumber.add(BigInteger.ONE); // Numéro de série du certificat
 
 		X509v1CertificateBuilder certBldr = new JcaX509v1CertificateBuilder(
-				new X500Principal("CN="+name),
+				new X500Principal(name),
 				serialNumber,
 				new Date(System.currentTimeMillis()),
 				new Date(System.currentTimeMillis() + 1000*60*60*24*validityDays),
-				new X500Principal("CN="+name),
+				new X500Principal(name),
 				keyPair.getPublic());
 		ContentSigner signer = new JcaContentSignerBuilder("SHA1withRSA")
 				.setProvider("BC").build(keyPair.getPrivate());
