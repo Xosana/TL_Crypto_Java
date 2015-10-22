@@ -4,7 +4,6 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.*;
@@ -22,9 +21,7 @@ public class Equipement {
 	private int monPort; // Numéro de port d’écoute
 	private KeyPair maCle; // Paire de clés de l’équipement
 	private X509Certificate monCert; // Certificat auto-signé
-	private static  BigInteger bi = BigInteger.ZERO; // Compteur d'Id
-	private BigInteger id; // Id de l'équipement
-	
+
 	private ServerSocket serverSocket; // Serveur d'écoute de l'équipement
 	private Socket socket;
 	private InputStream NativeIn; // Flux natif entrant
@@ -40,10 +37,7 @@ public class Equipement {
 		monPort = port;
 		serverSocket = new ServerSocket(monPort); // Creation de socket (TCP)
 		
-		// Mise en place d'un identifiant d'équipement
-		bi = bi.add(BigInteger.ONE); 
-		id = bi;
-
+		
 		// Initialisation de la structure pour la generation de clé
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
 		if(kpg != null){
@@ -52,7 +46,7 @@ public class Equipement {
 		}
 
 		// Auto-certification de la clé publique
-		monCert = Certificat.buildSelfCert(id+"-"+monNom, maCle, 10);
+		monCert = Certificat.buildSelfCert(monNom, maCle, 10);
 		Certificat.verifX509(monCert, maCle.getPublic());
 		
 		// Initialisation des flux
@@ -73,18 +67,9 @@ public class Equipement {
 	public void affichage() throws Exception {
 		// Ensemble des info de l’équipement
 		System.out.println(monNom);
-		System.out.println(id);
 		System.out.println(monPort);
 		System.out.println(maCle.getPublic());
 		System.out.println(monCert);
-	}
-	
-	public static BigInteger getBi(){
-		return bi;
-	}
-	
-	public BigInteger getId(){
-		return id;
 	}
 	
 	public String getNom(){
@@ -100,7 +85,7 @@ public class Equipement {
 	}
 	
 	public void initServer() throws IOException, ClassNotFoundException{
-		System.out.println("Initialisation de l'équipement "+id.toString()+"-"+monNom+" en tant que serveur");
+		System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
 		System.out.println("en attente de connexion...");
 		socket = serverSocket.accept(); // Attente de connexion
 		
