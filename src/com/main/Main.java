@@ -1,7 +1,6 @@
 package com.main;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Scanner;
 
 import com.equipment.Equipement;
@@ -36,7 +35,7 @@ public class Main {
 
 		while(ctn){
 			System.out.print("menu> ");
-			message = sc.next();
+			message = sc.nextLine();
 			commands = message.split(" ");
 			m = commands[0];
 
@@ -71,7 +70,7 @@ public class Main {
 				if (commands.length > 1) {
 					Boolean wentTo = false;
 					for (Equipement e: equipements) {
-						if (e.getNom().equals(commands[1])) {
+						if (e.getNom().compareTo(commands[1]) == 0) {
 							startEquipementGui(e, equipements);
 							wentTo = true;
 						}
@@ -90,7 +89,7 @@ public class Main {
 		}
 	}
 
-	public static void startEquipementGui(Equipement e, ArrayList<Equipement> equipements) {
+	public static void startEquipementGui(Equipement e, ArrayList<Equipement> equipements) throws Exception {
 		System.out.print("Bienvenue dans l'interface de ");
 		System.out.println(e.getNom());
 		Boolean ctn = true;
@@ -100,7 +99,7 @@ public class Main {
 
 		while(ctn) {
 			System.out.print(e.getNom() + "> ");
-			message = sc.next();
+			message = sc.nextLine();
 			commands = message.split(" ");
 			m = commands[0];
 			if (m.equals("back")) {
@@ -118,6 +117,8 @@ public class Main {
 							wentTo = true;
 							if (e2 != e) {
 								System.out.println("Intialisation de la procédure de connexion à l'équipement " + commands[1]);
+								e2.initServer();
+								e.askCSR(e2.getPort());
 							} else {
 								System.out.println("Arrêtez de faire le malin!");
 							}
