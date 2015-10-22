@@ -85,5 +85,9 @@ public class Accept_clients implements Runnable {
 		}
 
 	}
+	
+	public static void test(){
+		System.out.println("test");
+	}
 
 }

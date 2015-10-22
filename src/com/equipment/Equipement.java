@@ -10,8 +10,6 @@ import java.net.Socket;
 import java.security.*;
 import java.security.cert.X509Certificate;
 
-import javax.security.auth.x500.X500Principal;
-
 import com.network.Accept_clients;
 
 
@@ -23,10 +21,10 @@ public class Equipement {
 	private String monNom; // Identité de l’équipement.
 	private int monPort; // Numéro de port d’écoute.
 	private static  BigInteger bi = BigInteger.ZERO; // Compteur d'Id
-	public BigInteger id; // Id de l'équipement
+	private BigInteger id; // Id de l'équipement
 
 	
-	public Equipement (String nom, int port, boolean b) throws Exception {
+	public Equipement (String nom, int port) throws Exception {
 		// Constructeur de l’equipement identifié par nom
 		// et qui « écoutera » sur le port port.
 		monNom = nom;
@@ -65,8 +63,16 @@ public class Equipement {
 		System.out.println(monCert);
 	}
 	
-	public X500Principal getSubject(){
-		return monCert.getIssuerX500Principal();
+	public static BigInteger getBi(){
+		return bi;
+	}
+	
+	public BigInteger getId(){
+		return id;
+	}
+	
+	public String getNom(){
+		return monNom;
 	}
 	
 	public X509Certificate getX509(){
