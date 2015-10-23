@@ -78,12 +78,15 @@ public class Main {
 				Equipement e1 = new Equipement("e1", 11111);
 				Equipement e2 = new Equipement("e2", 22222);
 				Equipement e3 = new Equipement("e3", 33333);
+				Equipement e4 = new Equipement("e4", 44444);
 				equipements.add(e1);
 				equipements.add(e2);
 				equipements.add(e3);
+				equipements.add(e4);
 				System.out.println("Création de l'équipement e1 ayant pour port 11111");
 				System.out.println("Création de l'équipement e2 ayant pour port 22222");
 				System.out.println("Création de l'équipement e3 ayant pour port 33333");
+				System.out.println("Création de l'équipement e4 ayant pour port 44444");
 				connect_equipments(e1, e2);
 			} else {
 				System.out.println("Commande inconnue, utilisez 'help' pour plus d'informations");
@@ -154,6 +157,5 @@ public class Main {
 		e1.initServer();
 		e2.askCSR();
 		e1.synchronisation();
-		e2.synchronisation();
 	}
 }

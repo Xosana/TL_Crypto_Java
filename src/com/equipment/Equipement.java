@@ -58,7 +58,7 @@ public class Equipement {
 		trustedKeys.put(monNom, maCle.getPublic());
 		ca = new ArrayList<X509Certificate>();
 		da = new ArrayList<X509Certificate>();
-		
+
 		Thread listeningThread;
 		listeningThread = new Thread() {
 			@SuppressWarnings("unchecked")
@@ -77,21 +77,21 @@ public class Equipement {
 						nativeOut = socket.getOutputStream(); 
 						oos = new ObjectOutputStream(nativeOut);
 						ArrayList<String> pemCerts = (ArrayList<String>) ois.readObject();
-						//						hasTakenSynchroData.release();
+//						hasTakenSynchroData.release();
 						ArrayList<X509Certificate> certs = new ArrayList<X509Certificate>() ;
 						for (String pemCert: pemCerts) {
 							certs.add(Certificat.pEMtoX509(pemCert));
 						}
 						synchroServer(certs);
 					}
-					
+
 					ois.close();
 					oos.close(); 
 					nativeIn.close();
 					nativeOut.close();
 					socket.close();
 					serverSocket.close();
-					
+
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -99,26 +99,25 @@ public class Equipement {
 		};
 		listeningThread.start();
 	}
-	
+
 	public void setTerminate() {
 		running = false;
 	}
 
 	public void affichage_certs_issuer(ArrayList<X509Certificate> certs) {
+		System.out.println("Nombre de certificats = " + certs.size());
 		for (X509Certificate cert: certs) {
 			String issuer = Certificat.getIssuer(cert);
 			String subject = Certificat.getSubject(cert);
-			System.out.println("{"+issuer+", Certificate["+issuer+"](PubKey("+subject+"))"+"}");
+			System.out.println("Cert_" + issuer + "{Pub_" + subject + "}");
 		}
 	}
 
 	public void affichage_da() {
-		System.out.println("DA count = " + da.size());
 		affichage_certs_issuer(da);
 	}
 
 	public void affichage_ca() {
-		System.out.println("CA count = " + ca.size());
 		affichage_certs_issuer(ca);
 	}
 
@@ -167,18 +166,13 @@ public class Equipement {
 
 					// Vérification du CSR
 					if(Certificat.verifCSR(csr)){
-						//						System.out.println("L'équipement "+monNom+" vérifie la demande avec succès");
-
 						// Ajout l'équipement dans trustedKeys
 						trustedKeys.put(csr.getSubject().getRDNs()[0].getFirst().getValue().toString(), csr.getPublicKey());
-
-						//						System.out.println("L'équipement "+monNom+" génère et envoie la certification de la clé publique");
 
 						// Certification de la clé publique
 						X509Certificate intermX509 = Certificat.cSRtoX509(X500Name.getInstance(
 								monCert.getIssuerX500Principal().getEncoded()), csr, maCle.getPrivate(), 10);
 
-						//						System.out.println("L'équipement "+monNom+" envoie le certificat");
 						// Emission du certificat
 						oos.writeObject(Certificat.x509toPEM(intermX509)); 
 						oos.flush();
@@ -240,7 +234,7 @@ public class Equipement {
 	public void synchronisation() throws Exception{
 		ArrayList<String> cadaPEM = new ArrayList<String>();
 		ArrayList<Integer> portList = new ArrayList<Integer>();
-
+		System.out.println("L'équipement " + getNom() + " lance une synchronisation");
 		synchronized (ca) {
 			for(X509Certificate c: ca){
 				cadaPEM.add(Certificat.x509toPEM(c));
@@ -259,7 +253,7 @@ public class Equipement {
 		}
 	}
 
-	public void synchro_client(int port, ArrayList<String> cadaPEM) throws UnknownHostException, IOException{
+	public void synchro_client(int port, ArrayList<String> cadaPEM) throws UnknownHostException, IOException, InterruptedException{
 		Socket socket = new Socket(HOST, port);
 		// Création des flux natifs et évolués
 		OutputStream NativeOut = socket.getOutputStream(); 
@@ -269,10 +263,10 @@ public class Equipement {
 		oos.writeObject(cadaPEM); 
 		oos.flush();
 		// Fermeture des flux evolues et natifs
-		//			hasTakenSynchroData.acquire();
-		//			oos.close(); 
-		//			NativeOut.close();
-		//			socket.close(); 
+//		hasTakenSynchroData.acquire();
+//		oos.close(); 
+//		NativeOut.close();
+//		socket.close(); 
 	}
 
 	//We receive an array of certificates, we check if we already have them
