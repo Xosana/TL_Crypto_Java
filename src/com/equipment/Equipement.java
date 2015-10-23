@@ -68,7 +68,6 @@ public class Equipement {
 			public void run() {
 				try {
 					serverSocket = new ServerSocket(monPort);
-
 					while (true) {
 						synchroSocket = serverSocket.accept();
 						System.out.println("Synchronization request "+monNom);
@@ -150,7 +149,6 @@ public class Equipement {
 			public void run(){
 				try {						
 					ServerSocket initServerSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisation
-					
 					Socket socket = initServerSocket.accept();
 
 					// Création des flux natifs et évolués
@@ -194,7 +192,7 @@ public class Equipement {
 							socket.close();
 							initServerSocket.close();
 						} catch (IOException e) {
-							// Do nothing
+							e.printStackTrace();
 						}
 					}
 				} catch (Exception e) {
