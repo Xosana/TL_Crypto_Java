@@ -24,9 +24,9 @@ public class Equipement {
 	private KeyPair maCle; // Paire de clés de l’équipement
 	private X509Certificate monCert; // Certificat auto-signé
 
-	private HashMap<String, PublicKey> trustedKeys;
-	private ArrayList<X509Certificate> ca;
-	private ArrayList<X509Certificate> da;
+	private HashMap<String, PublicKey> trustedKeys; // HashMap des équipements de confiance
+	private ArrayList<X509Certificate> ca; // Ensemble des autorités de certification
+	private ArrayList<X509Certificate> da; // Ensemble des autorités dérivées
 
 	private Boolean running = true;
 	private static final int INIT_PORT = 7777; // Port de reconnaissance mutuelle
@@ -59,6 +59,7 @@ public class Equipement {
 		ca = new ArrayList<X509Certificate>();
 		da = new ArrayList<X509Certificate>();
 
+		// Initialisation du port d'écoute de l'équipement
 		Thread listeningThread;
 		listeningThread = new Thread() {
 			@SuppressWarnings("unchecked")
@@ -70,7 +71,7 @@ public class Equipement {
 					ObjectOutputStream oos = null; // Flux évolué sortant
 					ServerSocket serverSocket = new ServerSocket(monPort);
 					Socket socket = null;;
-					while (running) {
+					while (running) { // Ecoute continue
 						socket = serverSocket.accept();
 						nativeIn = socket.getInputStream(); 
 						ois = new ObjectInputStream(nativeIn); 
@@ -100,10 +101,12 @@ public class Equipement {
 		listeningThread.start();
 	}
 
+	// Gestion de l'écoute de l'équipement sur son port
 	public void setTerminate() {
 		running = false;
 	}
 
+	// Affichage des ensembles CA ou DA
 	public void affichage_certs_issuer(ArrayList<X509Certificate> certs) {
 		System.out.println("Nombre de certificats = " + certs.size());
 		for (X509Certificate cert: certs) {
@@ -121,8 +124,8 @@ public class Equipement {
 		affichage_certs_issuer(ca);
 	}
 
+	// Affichage de l'ensemble des informations de l'équipement
 	public void affichage() {
-		// Ensemble des info de l’équipement
 		System.out.println(monNom);
 		System.out.println(monPort);
 		System.out.println(maCle.getPublic());
@@ -141,13 +144,14 @@ public class Equipement {
 		return monCert;
 	}
 
+	// Initialisation de la reconnaissance mutuelle en tant que serveur
 	public void initServer() throws IOException, ClassNotFoundException{
 
 		new Thread() {
 			public void run(){
 				try {						
 					ServerSocket initServerSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisation
-					serverInitialized.release();
+					serverInitialized.release(); // Gestion de la concurrence pour askCSR
 					System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
 					Socket socket = initServerSocket.accept();
 
@@ -196,6 +200,7 @@ public class Equipement {
 
 	}
 
+	// Demande de certification de la clé publique de l'équipement
 	public void askCSR() throws Exception{
 		System.out.println("Demande de connexion par l'équipement" + getNom());
 		serverInitialized.acquire();	 //Attendre que l'équipement ait initialisé son "mode serveur"
@@ -230,9 +235,12 @@ public class Equipement {
 			ca.add(intermX509);
 		}
 	}
-
+	
+	// Initialisation de la synchronisation après la reconnaissance mutuelle
+	// L'équipement ayant reçu la certification de sa clé envoie 
+	// son CA et son DA à tous les équipements présents dans son CA -> Propagation de l'information
 	public void synchronisation() throws Exception{
-		ArrayList<String> cadaPEM = new ArrayList<String>();
+		ArrayList<String> cadaPEM = new ArrayList<String>(); // Union de CA et DA
 		ArrayList<Integer> portList = new ArrayList<Integer>();
 		System.out.println("L'équipement " + getNom() + " lance une synchronisation");
 		synchronized (ca) {
@@ -249,11 +257,13 @@ public class Equipement {
 		}
 
 		for(int i: portList){
-			synchro_client(i, cadaPEM);
+			synchro_client(i, cadaPEM); // Envoie de l'ensemble aux eqpts de CA
 		}
 	}
 
+	// Envoie de l'ensemble CA U DA à l'équipement écoutant sur le port port
 	public void synchro_client(int port, ArrayList<String> cadaPEM) throws UnknownHostException, IOException, InterruptedException{
+		@SuppressWarnings("resource")
 		Socket socket = new Socket(HOST, port);
 		// Création des flux natifs et évolués
 		OutputStream NativeOut = socket.getOutputStream(); 

@@ -31,7 +31,7 @@ public class Certificat {
 	private static  BigInteger serialNumber = BigInteger.ZERO;
 
 	/**
-	 * Build a sample V1 certificate to use as a CA root certificate
+	 * Build a self-signed certificate
 	 * @param keyPair
 	 * @param validityDays
 	 * @return X509Certificate
@@ -43,6 +43,9 @@ public class Certificat {
 		Security.addProvider(new BouncyCastleProvider());
 		serialNumber = serialNumber.add(BigInteger.ONE); // Numéro de série du certificat
 
+		// Création du nom du certificat
+		// CN contient le nom de l'équipement
+		// C contient le port de l'équipement
 		X500NameBuilder builder = new X500NameBuilder(BCStyle.INSTANCE);
         builder.addRDN(BCStyle.CN, name);
         builder.addRDN(BCStyle.C, Integer.toString(port));
@@ -62,7 +65,7 @@ public class Certificat {
 	}
 
 	/**
-	 * Méthode de conversion CSR -> X509
+	 * Conversion method CSR -> X509
 	 * @param csr
 	 * @param caKey
 	 * @param validityDays
@@ -81,8 +84,8 @@ public class Certificat {
 				serialNumber,
 				new Date(System.currentTimeMillis()),
 				new Date(System.currentTimeMillis() + 1000*60*60*24*validityDays),
-				csr.getSubject(),
-				csr.getPublicKey());
+				csr.getSubject(), // Récupération du sujet du CSR
+				csr.getPublicKey()); // Récupération de la clé publique du CSR
 		ContentSigner signer = new JcaContentSignerBuilder("SHA1withRSA")
 				.setProvider("BC").build(caKey);
 		return new JcaX509CertificateConverter().setProvider("BC")
@@ -90,7 +93,7 @@ public class Certificat {
 	}
 
 	/**
-	 * Méthode de vérification du certificat
+	 * Verification method of certification
 	 * @param pubkey
 	 * @return boolean
 	 */
@@ -109,21 +112,35 @@ public class Certificat {
 		return true;
 	}
 	
-	
+	/**
+	 * Get the issuer of the certificate
+	 * @param x509
+	 * @return String
+	 */
 	public static String getIssuer(X509Certificate x509){
 		return X500Name.getInstance(x509.getIssuerX500Principal().getEncoded()).getRDNs(BCStyle.CN)[0].getFirst().getValue().toString();
 	}
 	
+	/**
+	 * get the subject of the certificate
+	 * @param x509
+	 * @return String
+	 */
 	public static String getSubject(X509Certificate x509) {
 		return X500Name.getInstance(x509.getSubjectX500Principal().getEncoded()).getRDNs(BCStyle.CN)[0].getFirst().getValue().toString();
 	}
 	
+	/**
+	 * get the port of the issuer
+	 * @param x509
+	 * @return int
+	 */
 	public static int getPort(X509Certificate x509){
 		return Integer.parseInt(X500Name.getInstance(x509.getIssuerX500Principal().getEncoded()).getRDNs(BCStyle.C)[0].getFirst().getValue().toString());
 	}
 
 	/** 
-	 * Méthode d'encodage X509 -> PEM
+	 * Encoding method X509 -> PEM
 	 * @param c
 	 * @return String(X509)
 	 * @throws Exception
@@ -138,7 +155,7 @@ public class Certificat {
 	}
 
 	/** 
-	 * Méthode de décodage PEM -> X509
+	 * Decoding method PEM -> X509
 	 * @param pemcert
 	 * @return X509Certificate
 	 * @throws Exception
@@ -156,7 +173,7 @@ public class Certificat {
 	/////////////////////////////////////////////////////////////////////////////////
 	
 	/**
-	 * Build a CSR
+	 * Build a signed CSR
 	 * @param X500Principal
 	 * @param keyPair
 	 * @return JcaPKCS10CertificationRequest
@@ -175,7 +192,7 @@ public class Certificat {
 	}
 
 	/**
-	 * Méthode de vérification d'un CSR
+	 * Verification method of a CSR
 	 * @param JcaPKCS10CertificationRequest
 	 * @return Boolean
 	 */
@@ -191,7 +208,7 @@ public class Certificat {
 		}
 	}
 
-	/** Méthode d'encodage CSR -> PEM
+	/** Encoding method CSR -> PEM
 	 * @param PKCS10CertificationRequest
 	 * @return String(PKCS10CertificationRequest)
 	 * @throws Exception
@@ -206,7 +223,7 @@ public class Certificat {
 	}
 
 	/** 
-	 * Méthode de décodage PEM -> CSR
+	 * Decoding method PEM -> CSR
 	 * @param String PEMCertificate
 	 * @return PKCS10CertificationRequest
 	 * @throws Exception
