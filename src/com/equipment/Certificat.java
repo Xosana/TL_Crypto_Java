@@ -10,6 +10,8 @@ import java.util.Date;
 import javax.security.auth.x500.X500Principal;
 
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.X500NameBuilder;
+import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.cert.*;
 import org.bouncycastle.cert.jcajce.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -35,18 +37,23 @@ public class Certificat {
 	 * @return X509Certificate
 	 * @throws Exception
 	 */
-	public static X509Certificate buildSelfCert(String name, KeyPair keyPair, int validityDays)
+	public static X509Certificate buildSelfCert(String name, int port, KeyPair keyPair, int validityDays)
 			throws Exception
 	{
 		Security.addProvider(new BouncyCastleProvider());
 		serialNumber = serialNumber.add(BigInteger.ONE); // Numéro de série du certificat
 
+		X500NameBuilder builder = new X500NameBuilder(BCStyle.INSTANCE);
+        builder.addRDN(BCStyle.CN, name);
+        builder.addRDN(BCStyle.C, Integer.toString(port));
+        X500Name x500Name = builder.build();
+		
 		X509v1CertificateBuilder certBldr = new JcaX509v1CertificateBuilder(
-				new X500Principal("CN="+name),
+				x500Name,
 				serialNumber,
 				new Date(System.currentTimeMillis()),
 				new Date(System.currentTimeMillis() + 1000*60*60*24*validityDays),
-				new X500Principal("CN="+name),
+				x500Name,
 				keyPair.getPublic());
 		ContentSigner signer = new JcaContentSignerBuilder("SHA1withRSA")
 				.setProvider("BC").build(keyPair.getPrivate());
@@ -100,6 +107,15 @@ public class Certificat {
 			return false;
 		}
 		return true;
+	}
+	
+	
+	public static String getIssuer(X509Certificate x509){
+		return X500Name.getInstance(x509.getIssuerX500Principal().getEncoded()).getRDNs(BCStyle.CN)[0].getFirst().getValue().toString();
+	}
+	
+	public static int getPort(X509Certificate x509){
+		return Integer.parseInt(X500Name.getInstance(x509.getIssuerX500Principal().getEncoded()).getRDNs(BCStyle.C)[0].getFirst().getValue().toString());
 	}
 
 	/** 
