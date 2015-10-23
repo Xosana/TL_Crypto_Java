@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -213,7 +214,7 @@ public class Equipement {
 		oos.flush();
 
 
-		// Reception de la certification
+		// Réception de la certification
 		String pemcert = (String) ois.readObject(); 
 		X509Certificate intermX509 = Certificat.pEMtoX509(pemcert);
 
@@ -235,16 +236,39 @@ public class Equipement {
 
 	public void synchronisation() throws Exception{
 		ArrayList<String> cadaPEM = new ArrayList<String>();
+		ArrayList<Integer> portList = new ArrayList<Integer>();
 		for(X509Certificate c: ca){
 			cadaPEM.add(Certificat.x509toPEM(c));
+			portList.add(Certificat.getPort(c));
 		}
 
 		for(X509Certificate c: da){
 			cadaPEM.add(Certificat.x509toPEM(c));
 		}
 
+		for(int i: portList){
+			synchro_client(i, cadaPEM);
+		}
+	}
+	
+	public void synchro_client(int port, ArrayList<String> cadaPEM) throws UnknownHostException, IOException{
+		socket = new Socket("localHost",port);
 
+		// Création des flux natifs et évolués
+		NativeOut = socket.getOutputStream(); 
+		oos = new ObjectOutputStream(NativeOut); 
 
+		// Envoi de la liste ca+da
+		oos.writeObject(cadaPEM); 
+		oos.flush();
+		
+
+		// Fermeture des flux evolues et natifs
+		oos.close(); 
+		NativeOut.close();
+
+		// Fermeture de la connexion
+		socket.close(); 
 	}
 
 	//We receive an array of certificates, we check if we already have them
