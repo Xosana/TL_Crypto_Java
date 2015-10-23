@@ -91,7 +91,7 @@ public class Main {
 		}
 		
 		for (Equipement e: equipements) {
-			e.close_socket();
+			e.setTerminate();
 		}
 	}
 

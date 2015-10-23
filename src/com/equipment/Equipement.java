@@ -28,14 +28,7 @@ public class Equipement {
 	private ArrayList<X509Certificate> ca;
 	private ArrayList<X509Certificate> da;
 
-	private ServerSocket serverSocket; // Serveur d'écoute de l'équipement
-	private Socket synchroSocket;
-
-	private InputStream synchroNativeIn; // Flux natif entrant
-	private ObjectInputStream synchroOis; // Flux évolué entrant
-	private OutputStream synchroNativeOut; // Flux natif sortant
-	private ObjectOutputStream synchroOos; // Flux évolué sortant
-
+	private Boolean running = true;
 	private static final int INIT_PORT = 7777; // Port de reconnaissance mutuelle
 	private static final String HOST = "localHost";
 	public static Semaphore serverInitialized = new Semaphore(0);
@@ -65,24 +58,25 @@ public class Equipement {
 		trustedKeys.put(monNom, maCle.getPublic());
 		ca = new ArrayList<X509Certificate>();
 		da = new ArrayList<X509Certificate>();
-
+		
 		Thread listeningThread;
 		listeningThread = new Thread() {
 			@SuppressWarnings("unchecked")
 			public void run() {
 				try {
-					serverSocket = new ServerSocket(monPort);
-					Boolean running = true;
+					InputStream nativeIn = null; // Flux natif entrant
+					ObjectInputStream ois = null; // Flux évolué entrant
+					OutputStream nativeOut = null; // Flux natif sortant
+					ObjectOutputStream oos = null; // Flux évolué sortant
+					ServerSocket serverSocket = new ServerSocket(monPort);
+					Socket socket = null;;
 					while (running) {
-						if (synchroSocket.isClosed()) 
-							running = false;
-						synchroSocket = serverSocket.accept();
-						synchroNativeIn = synchroSocket.getInputStream(); 
-						synchroOis = new ObjectInputStream(synchroNativeIn); 
-						synchroNativeOut = synchroSocket.getOutputStream(); 
-						synchroOos = new ObjectOutputStream(synchroNativeOut);
-
-						ArrayList<String> pemCerts = (ArrayList<String>) synchroOis.readObject();
+						socket = serverSocket.accept();
+						nativeIn = socket.getInputStream(); 
+						ois = new ObjectInputStream(nativeIn); 
+						nativeOut = socket.getOutputStream(); 
+						oos = new ObjectOutputStream(nativeOut);
+						ArrayList<String> pemCerts = (ArrayList<String>) ois.readObject();
 						//						hasTakenSynchroData.release();
 						ArrayList<X509Certificate> certs = new ArrayList<X509Certificate>() ;
 						for (String pemCert: pemCerts) {
@@ -90,27 +84,24 @@ public class Equipement {
 						}
 						synchroServer(certs);
 					}
+					
+					ois.close();
+					oos.close(); 
+					nativeIn.close();
+					nativeOut.close();
+					socket.close();
+					serverSocket.close();
+					
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			}
 		};
 		listeningThread.start();
-
 	}
-
-	public void close_socket() {
-		try {
-			synchroOis.close();
-			synchroOos.close(); 
-			synchroNativeIn.close();
-			synchroNativeOut.close();
-			synchroSocket.close();
-			serverSocket.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 
+	
+	public void setTerminate() {
+		running = false;
 	}
 
 	public void affichage_certs_issuer(ArrayList<X509Certificate> certs) {
