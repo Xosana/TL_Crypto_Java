@@ -114,6 +114,10 @@ public class Certificat {
 		return X500Name.getInstance(x509.getIssuerX500Principal().getEncoded()).getRDNs(BCStyle.CN)[0].getFirst().getValue().toString();
 	}
 	
+	public static String getSubject(X509Certificate x509) {
+		return X500Name.getInstance(x509.getSubjectX500Principal().getEncoded()).getRDNs(BCStyle.CN)[0].getFirst().getValue().toString();
+	}
+	
 	public static int getPort(X509Certificate x509){
 		return Integer.parseInt(X500Name.getInstance(x509.getIssuerX500Principal().getEncoded()).getRDNs(BCStyle.C)[0].getFirst().getValue().toString());
 	}
