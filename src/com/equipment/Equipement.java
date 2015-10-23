@@ -238,9 +238,9 @@ public class Equipement {
 
 		// Fermeture de la connexion
 		socket.close(); 
-
-		ca.add(intermX509);
-
+		synchronized(ca) {
+			ca.add(intermX509);
+		}
 		synchronisation();
 	}
 
@@ -287,17 +287,17 @@ public class Equipement {
 		new Thread() {
 			public void run() {
 				Boolean hasAddedNew = false;
-				synchronized(da) {  //Synchronize during the update of da, to avoid concurrency issues
-					for (X509Certificate cert: certs) {
-						if (!da.contains(cert) && !ca.contains(cert)) {	
-							String issuer = Certificat.getIssuer(cert);
-							if (trustedKeys.containsKey(issuer)) {
-								Boolean isVerified =  Certificat.verifX509(cert, trustedKeys.get(issuer));
-								if (isVerified) {
+				for (X509Certificate cert: certs) {
+					if (!da.contains(cert) && !ca.contains(cert)) {	
+						String issuer = Certificat.getIssuer(cert);
+						if (trustedKeys.containsKey(issuer)) {
+							Boolean isVerified =  Certificat.verifX509(cert, trustedKeys.get(issuer));
+							if (isVerified) {
+								synchronized(da) {  //Synchronize during the update of da, to avoid concurrency issues
 									da.add(cert);
-									hasAddedNew = true;
-								} 
-							}
+								}
+								hasAddedNew = true;
+							} 
 						}
 					}
 				}
