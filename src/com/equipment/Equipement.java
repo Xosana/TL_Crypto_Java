@@ -85,7 +85,6 @@ public class Equipement {
 						synchroServer(certs);
 					}
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
