@@ -70,6 +70,7 @@ public class Equipement {
 
 		Thread listeningThread;
 		listeningThread = new Thread() {
+			@SuppressWarnings("unchecked")
 			public void run() {
 				try {
 					serverSocket = new ServerSocket(monPort);
