@@ -58,6 +58,7 @@ public class Equipement {
 		Certificat.verifX509(monCert, maCle.getPublic());
 
 		// Initialisation de CA et DA
+		trustedKeys = new HashMap<String, PublicKey>();
 		ca = new ArrayList<X509Certificate>();
 		da = new ArrayList<X509Certificate>();
 
