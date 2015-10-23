@@ -30,10 +30,10 @@ public class Equipement {
 	private ServerSocket serverSocket; // Serveur d'écoute de l'équipement
 	private Socket synchroSocket;
 	
-	private InputStream NativeIn; // Flux natif entrant
-	private ObjectInputStream ois; // Flux évolué entrant
-	private OutputStream NativeOut; // Flux natif sortant
-	private ObjectOutputStream oos; // Flux évolué sortant
+	private InputStream synchroNativeIn; // Flux natif entrant
+	private ObjectInputStream synchroOis; // Flux évolué entrant
+	private OutputStream synchroNativeOut; // Flux natif sortant
+	private ObjectOutputStream synchroOos; // Flux évolué sortant
 
 	private static final int INIT_PORT = 7777; // Port de reconnaissance mutuelle
 	private static final String HOST = "localHost";
@@ -62,12 +62,6 @@ public class Equipement {
 		ca = new ArrayList<X509Certificate>();
 		da = new ArrayList<X509Certificate>();
 
-		// Initialisation des flux
-		NativeIn = null; 
-		ois = null; 
-		NativeOut = null; 
-		oos = null;
-
 		Thread listeningThread;
 		listeningThread = new Thread() {
 			@SuppressWarnings("unchecked")
@@ -78,12 +72,13 @@ public class Equipement {
 					while (true) {
 						synchroSocket = serverSocket.accept();
 						System.out.println("Synchronization request "+monNom);
-						NativeIn = synchroSocket.getInputStream(); 
-						ois = new ObjectInputStream(NativeIn); 
-						NativeOut = synchroSocket.getOutputStream(); 
-						oos = new ObjectOutputStream(NativeOut);
+						
+						synchroNativeIn = synchroSocket.getInputStream(); 
+						synchroOis = new ObjectInputStream(synchroNativeIn); 
+						synchroNativeOut = synchroSocket.getOutputStream(); 
+						synchroOos = new ObjectOutputStream(synchroNativeOut);
 
-						ArrayList<String> pemCerts = (ArrayList<String>) ois.readObject();
+						ArrayList<String> pemCerts = (ArrayList<String>) synchroOis.readObject();
 						ArrayList<X509Certificate> certs = new ArrayList<X509Certificate>() ;
 						for (String pemCert: pemCerts) {
 							certs.add(Certificat.pEMtoX509(pemCert));
@@ -102,10 +97,10 @@ public class Equipement {
 
 	public void close_socket() {
 		try {
-			ois.close();
-			oos.close(); 
-			NativeIn.close();
-			NativeOut.close();
+			synchroOis.close();
+			synchroOos.close(); 
+			synchroNativeIn.close();
+			synchroNativeOut.close();
 			synchroSocket.close();
 			serverSocket.close();
 		} catch (IOException e) {
@@ -153,22 +148,17 @@ public class Equipement {
 
 		new Thread() {
 			public void run(){
-				try {			
-					InputStream initNativeIn; // Flux natif entrant
-					ObjectInputStream initois; // Flux évolué entrant
-					OutputStream initNativeOut; // Flux natif sortant
-					ObjectOutputStream initoos; // Flux évolué sortant
-					
+				try {						
 					ServerSocket initServerSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisation
 					
 					Socket socket = initServerSocket.accept();
 
 					// Création des flux natifs et évolués
-					initNativeIn = socket.getInputStream(); 
-					initois = new ObjectInputStream(NativeIn); 
-					initNativeOut = socket.getOutputStream(); 
-					initoos = new ObjectOutputStream(NativeOut);
-
+					OutputStream NativeOut = socket.getOutputStream(); 
+					ObjectOutputStream oos = new ObjectOutputStream(NativeOut); 
+					InputStream NativeIn = socket.getInputStream(); 
+					ObjectInputStream ois = new ObjectInputStream(NativeIn);
+					
 					// Récupération du CSR
 					String pemCSR = (String) ois.readObject(); 
 					System.out.println("L'équipement "+monNom+" reçoit la demande");
@@ -195,10 +185,10 @@ public class Equipement {
 						oos.flush();
 
 						// Fermeture des flux evolues et natifs
-						initois.close();
-						initoos.close(); 
-						initNativeIn.close(); 
-						initNativeOut.close();
+						ois.close();
+						oos.close(); 
+						NativeIn.close(); 
+						NativeOut.close();
 
 						try {
 							socket.close();
@@ -217,17 +207,12 @@ public class Equipement {
 
 	public void askCSR() throws Exception{
 		Socket socket = new Socket(HOST, INIT_PORT); // Connection sur le port d'initialisation
-
-		InputStream initNativeIn; // Flux natif entrant
-		ObjectInputStream initois; // Flux évolué entrant
-		OutputStream initNativeOut; // Flux natif sortant
-		ObjectOutputStream initoos; // Flux évolué sortant
 		
 		// Création des flux natifs et évolués
-		initNativeOut = socket.getOutputStream(); 
-		initoos = new ObjectOutputStream(NativeOut); 
-		initNativeIn = socket.getInputStream(); 
-		initois = new ObjectInputStream(NativeIn);
+		OutputStream NativeOut = socket.getOutputStream(); 
+		ObjectOutputStream oos = new ObjectOutputStream(NativeOut); 
+		InputStream NativeIn = socket.getInputStream(); 
+		ObjectInputStream ois = new ObjectInputStream(NativeIn);
 
 		System.out.println("L'équipement "+monNom+" envoie la demande de certification de sa clé publique");
 
@@ -244,10 +229,10 @@ public class Equipement {
 		System.out.println("L'équipement "+monNom+" reçoie la certification de sa clé publique");
 
 		// Fermeture des flux evolues et natifs
-		initois.close();
-		initoos.close(); 
-		initNativeIn.close(); 
-		initNativeOut.close();
+		ois.close();
+		oos.close(); 
+		NativeIn.close(); 
+		NativeOut.close();
 
 		// Fermeture de la connexion
 		socket.close(); 
@@ -278,13 +263,12 @@ public class Equipement {
 		Socket socket = new Socket(HOST,port);
 
 		// Création des flux natifs et évolués
-		NativeOut = socket.getOutputStream(); 
-		oos = new ObjectOutputStream(NativeOut); 
+		OutputStream NativeOut = socket.getOutputStream(); 
+		ObjectOutputStream oos = new ObjectOutputStream(NativeOut); 
 
 		// Envoi de la liste ca+da
 		oos.writeObject(cadaPEM); 
 		oos.flush();
-
 
 		// Fermeture des flux evolues et natifs
 		oos.close(); 
