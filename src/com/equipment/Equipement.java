@@ -29,7 +29,7 @@ public class Equipement {
 
 	private ServerSocket serverSocket; // Serveur d'écoute de l'équipement
 	private Socket synchroSocket;
-	
+
 	private InputStream synchroNativeIn; // Flux natif entrant
 	private ObjectInputStream synchroOis; // Flux évolué entrant
 	private OutputStream synchroNativeOut; // Flux natif sortant
@@ -59,6 +59,7 @@ public class Equipement {
 
 		// Initialisation de CA et DA
 		trustedKeys = new HashMap<String, PublicKey>();
+		trustedKeys.put(monNom, maCle.getPublic());
 		ca = new ArrayList<X509Certificate>();
 		da = new ArrayList<X509Certificate>();
 
@@ -70,13 +71,11 @@ public class Equipement {
 					serverSocket = new ServerSocket(monPort);
 					while (true) {
 						synchroSocket = serverSocket.accept();
-						System.out.println("Synchronization request "+monNom);
-						
 						synchroNativeIn = synchroSocket.getInputStream(); 
 						synchroOis = new ObjectInputStream(synchroNativeIn); 
 						synchroNativeOut = synchroSocket.getOutputStream(); 
 						synchroOos = new ObjectOutputStream(synchroNativeOut);
-
+						
 						ArrayList<String> pemCerts = (ArrayList<String>) synchroOis.readObject();
 						ArrayList<X509Certificate> certs = new ArrayList<X509Certificate>() ;
 						for (String pemCert: pemCerts) {
@@ -114,6 +113,7 @@ public class Equipement {
 	}
 
 	public void affichage_da() {
+		System.out.println("da count = " + da.size());
 		affichage_certs_issuer(da);
 	}
 
@@ -142,12 +142,12 @@ public class Equipement {
 	}
 
 	public void initServer() throws IOException, ClassNotFoundException{
-		System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
 
 		new Thread() {
 			public void run(){
 				try {						
 					ServerSocket initServerSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisation
+					System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
 					Socket socket = initServerSocket.accept();
 
 					// Création des flux natifs et évolués
@@ -155,7 +155,7 @@ public class Equipement {
 					ObjectOutputStream oos = new ObjectOutputStream(NativeOut); 
 					InputStream NativeIn = socket.getInputStream(); 
 					ObjectInputStream ois = new ObjectInputStream(NativeIn);
-					
+
 					// Récupération du CSR
 					String pemCSR = (String) ois.readObject(); 
 					System.out.println("L'équipement "+monNom+" reçoit la demande");
@@ -186,13 +186,10 @@ public class Equipement {
 						oos.close(); 
 						NativeIn.close(); 
 						NativeOut.close();
+						
+						socket.close();
+						initServerSocket.close();
 
-						try {
-							socket.close();
-							initServerSocket.close();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
 					}
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -204,39 +201,34 @@ public class Equipement {
 
 	public void askCSR() throws Exception{
 		Socket socket = new Socket(HOST, INIT_PORT); // Connection sur le port d'initialisation
-		
+
 		// Création des flux natifs et évolués
 		OutputStream NativeOut = socket.getOutputStream(); 
 		ObjectOutputStream oos = new ObjectOutputStream(NativeOut); 
 		InputStream NativeIn = socket.getInputStream(); 
 		ObjectInputStream ois = new ObjectInputStream(NativeIn);
 
-		System.out.println("L'équipement "+monNom+" envoie la demande de certification de sa clé publique");
-
 		// Création et envoi du CSR
+		System.out.println("L'équipement "+monNom+" envoie la demande de certification de sa clé publique");
 		String strCSR = Certificat.cSRtoPEM(Certificat.buildCSR(monCert.getSubjectX500Principal(), maCle));
 		oos.writeObject(strCSR); 
 		oos.flush();
 
-
 		// Réception de la certification
+		System.out.println("L'équipement "+monNom+" reçoie la certification de sa clé publique");
 		String pemcert = (String) ois.readObject(); 
 		X509Certificate intermX509 = Certificat.pEMtoX509(pemcert);
-
-		System.out.println("L'équipement "+monNom+" reçoie la certification de sa clé publique");
 
 		// Fermeture des flux evolues et natifs
 		ois.close();
 		oos.close(); 
 		NativeIn.close(); 
 		NativeOut.close();
-
-		// Fermeture de la connexion
-		socket.close(); 
+		socket.close();
+		
 		synchronized(ca) {
 			ca.add(intermX509);
 		}
-		synchronisation();
 	}
 
 	public void synchronisation() throws Exception{
@@ -257,8 +249,7 @@ public class Equipement {
 	}
 
 	public void synchro_client(int port, ArrayList<String> cadaPEM) throws UnknownHostException, IOException{
-		Socket socket = new Socket(HOST,port);
-
+		Socket socket = new Socket(HOST, port);
 		// Création des flux natifs et évolués
 		OutputStream NativeOut = socket.getOutputStream(); 
 		ObjectOutputStream oos = new ObjectOutputStream(NativeOut); 
@@ -266,13 +257,12 @@ public class Equipement {
 		// Envoi de la liste ca+da
 		oos.writeObject(cadaPEM); 
 		oos.flush();
-
 		// Fermeture des flux evolues et natifs
-		oos.close(); 
-		NativeOut.close();
-
-		// Fermeture de la connexion
-		socket.close(); 
+//		oos.close(); 
+//		NativeOut.close();
+//
+//		// Fermeture de la connexion
+//		socket.close(); 
 	}
 
 	//We receive an array of certificates, we check if we already have them
@@ -289,16 +279,15 @@ public class Equipement {
 								Boolean isVerified =  Certificat.verifX509(cert, trustedKeys.get(issuer));
 								if (isVerified) {
 									da.add(cert);
-								
 									//Add the public keys of the subject in our trusted keys if we verified his certificate
 									synchronized(trustedKeys) {
 										String subject = Certificat.getSubject(cert);
-										if (trustedKeys.containsKey(subject)) {
+										if (!trustedKeys.containsKey(subject)) {
 											trustedKeys.put(subject, cert.getPublicKey());
 										}
 									}
 									hasAddedNew = true;
-								} 
+								}
 							}
 						}
 					}

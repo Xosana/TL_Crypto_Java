@@ -218,8 +218,4 @@ public class Certificat {
 		parser.close();
 		return new JcaPKCS10CertificationRequest(certReq.getEncoded()); 
 	}
-
-
-
-
 }
