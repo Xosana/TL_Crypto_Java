@@ -31,7 +31,7 @@ public class Equipement {
 	private ObjectInputStream ois; // Flux évolué entrant
 	private OutputStream NativeOut; // Flux natif sortant
 	private ObjectOutputStream oos; // Flux évolué sortant
-	
+
 	private static final int INIT_PORT = 7777;
 
 
@@ -50,33 +50,67 @@ public class Equipement {
 		}
 
 		// Auto-certification de la clé publique
-		monCert = Certificat.buildSelfCert(monNom, maCle, 10);
+		monCert = Certificat.buildSelfCert(monNom, monPort, maCle, 10);
 		Certificat.verifX509(monCert, maCle.getPublic());
 
 		// Initialisation de CA et DA
 		ca = new ArrayList<X509Certificate>();
 		da = new ArrayList<X509Certificate>();
 
-		// Initialisation du serveur d'écoute sur monPort
-		serverSocket = new ServerSocket(monPort);
-		
 		// Initialisation des flux
 		NativeIn = null; 
 		ois = null; 
 		NativeOut = null; 
 		oos = null;
+
+		Thread listeningThread;
+		listeningThread = new Thread() {
+			public void run() {
+				try {
+					serverSocket = new ServerSocket(monPort);
+					
+					while (true) {
+						socket = serverSocket.accept();
+						NativeIn = socket.getInputStream(); 
+						ois = new ObjectInputStream(NativeIn); 
+						NativeOut = socket.getOutputStream(); 
+						oos = new ObjectOutputStream(NativeOut);
+
+						ArrayList<String> pemCerts = (ArrayList<String>) ois.readObject();
+						ArrayList<X509Certificate> certs = new ArrayList<X509Certificate>() ;
+						for (String pemCert: pemCerts) {
+							certs.add(Certificat.pEMtoX509(pemCert));
+						}
+						synchroServer(certs);
+					}
+					//					ois.close();
+					//					oos.close(); 
+					//					NativeIn.close(); 
+					//					NativeOut.close();
+					//					serverSocket.close();
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		};
+		listeningThread.start();
+
+	}
+	
+	public void affichage_certs_issuer(ArrayList<X509Certificate> certs) {
+		String m;
+		for (X509Certificate cert: certs) {
+			System.out.println(Certificat.getIssuer(cert));
+		}
 	}
 
 	public void affichage_da() {
-		for(X509Certificate x509: da ){
-			System.out.println(x509.getSubjectX500Principal().toString());
-		}
+		affichage_certs_issuer(da);
 	}
 
 	public void affichage_ca() {
-		for(X509Certificate x509: ca ){
-			System.out.println(x509.getIssuerX500Principal().toString());
-		}
+		affichage_certs_issuer(ca);
 	}
 
 	public void affichage() {
@@ -101,7 +135,7 @@ public class Equipement {
 
 	public void initServer() throws IOException, ClassNotFoundException{
 		System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
-		
+
 		initServerSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisations
 
 		new Thread() {
@@ -136,15 +170,16 @@ public class Equipement {
 						// Emission du certificat
 						oos.writeObject(Certificat.x509toPEM(intermX509)); 
 						oos.flush();
-						
+
 						// Fermeture des flux evolues et natifs
 						ois.close();
 						oos.close(); 
 						NativeIn.close(); 
 						NativeOut.close();
-						
+
 						try {
-							serverSocket.close();
+							initServerSocket.close();
+							System.out.println("Server close " + getNom());
 						} catch (IOException e) {
 							// Do nothing
 						}
@@ -168,7 +203,7 @@ public class Equipement {
 		ois = new ObjectInputStream(NativeIn);
 
 		System.out.println("L'équipement "+monNom+" envoie la demande de certification de sa clé publique");
-		
+
 		// Création et envoi du CSR
 		String strCSR = Certificat.cSRtoPEM(Certificat.buildCSR(monCert.getSubjectX500Principal(), maCle));
 		oos.writeObject(strCSR); 
@@ -178,7 +213,7 @@ public class Equipement {
 		// Reception de la certification
 		String pemcert = (String) ois.readObject(); 
 		X509Certificate intermX509 = Certificat.pEMtoX509(pemcert);
-		
+
 		System.out.println("L'équipement "+monNom+" reçoie la certification de sa clé publique");
 
 		// Fermeture des flux evolues et natifs
@@ -189,8 +224,31 @@ public class Equipement {
 
 		// Fermeture de la connexion
 		socket.close(); 
-		
+
 		ca.add(intermX509);
 	}
 
+	//We receive an array of certificates, we check if we already have them
+	//then we verify them. If they match the criteria we add them to da
+	public void synchroServer(final ArrayList<X509Certificate> certs) {
+		new Thread() {
+			public void run() {
+				Boolean hasAddedNew = false;
+				for (X509Certificate cert: certs) {
+					if (!da.contains(cert) && !ca.contains(cert)) {	
+						String issuer = Certificat.getIssuer(cert);
+						//TODO verify the certificate
+						Boolean isVerified = true;
+						if (isVerified) {
+							da.add(cert);
+							hasAddedNew = true;
+						} 
+					}
+				}
+				if (hasAddedNew) {
+					//TODO start synchro
+				}
+			}
+		}.start();
+	}
 }
