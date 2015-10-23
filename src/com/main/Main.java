@@ -158,5 +158,6 @@ public class Main {
 		e1.askCSR();
 		e1.initServer();
 		e2.askCSR();
+		e1.synchronisation();
 	}
 }
