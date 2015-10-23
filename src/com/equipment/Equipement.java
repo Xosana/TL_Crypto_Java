@@ -250,7 +250,7 @@ public class Equipement {
 			synchro_client(i, cadaPEM);
 		}
 	}
-	
+
 	public void synchro_client(int port, ArrayList<String> cadaPEM) throws UnknownHostException, IOException{
 		socket = new Socket("localHost",port);
 
@@ -261,7 +261,7 @@ public class Equipement {
 		// Envoi de la liste ca+da
 		oos.writeObject(cadaPEM); 
 		oos.flush();
-		
+
 
 		// Fermeture des flux evolues et natifs
 		oos.close(); 
@@ -277,15 +277,17 @@ public class Equipement {
 		new Thread() {
 			public void run() {
 				Boolean hasAddedNew = false;
-				for (X509Certificate cert: certs) {
-					if (!da.contains(cert) && !ca.contains(cert)) {	
-						String issuer = Certificat.getIssuer(cert);
-						if (trustedKeys.containsKey(issuer)) {
-							Boolean isVerified =  Certificat.verifX509(cert, trustedKeys.get(issuer));
-							if (isVerified) {
-								da.add(cert);
-								hasAddedNew = true;
-							} 
+				synchronized(da) {  //Synchronize during the update of da, to avoid concurrency issues
+					for (X509Certificate cert: certs) {
+						if (!da.contains(cert) && !ca.contains(cert)) {	
+							String issuer = Certificat.getIssuer(cert);
+							if (trustedKeys.containsKey(issuer)) {
+								Boolean isVerified =  Certificat.verifX509(cert, trustedKeys.get(issuer));
+								if (isVerified) {
+									da.add(cert);
+									hasAddedNew = true;
+								} 
+							}
 						}
 					}
 				}
