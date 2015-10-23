@@ -35,6 +35,7 @@ public class Equipement {
 	private ObjectOutputStream oos; // Flux évolué sortant
 
 	private static final int INIT_PORT = 7777; // Port de reconnaissance mutuelle
+	private static final String HOST = "localHost";
 
 
 	public Equipement (String nom, int port) throws Exception {
@@ -101,7 +102,6 @@ public class Equipement {
 	}
 
 	public void affichage_certs_issuer(ArrayList<X509Certificate> certs) {
-		String m;
 		for (X509Certificate cert: certs) {
 			System.out.println(Certificat.getIssuer(cert));
 		}
@@ -189,7 +189,6 @@ public class Equipement {
 						}
 					}
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -198,7 +197,7 @@ public class Equipement {
 	}
 
 	public void askCSR() throws Exception{
-		socket = new Socket("localHost",7777); // Connection sur le port d'initialisation
+		socket = new Socket(HOST, INIT_PORT); // Connection sur le port d'initialisation
 
 		// Création des flux natifs et évolués
 		NativeOut = socket.getOutputStream(); 
@@ -257,16 +256,22 @@ public class Equipement {
 				for (X509Certificate cert: certs) {
 					if (!da.contains(cert) && !ca.contains(cert)) {	
 						String issuer = Certificat.getIssuer(cert);
-						//TODO verify the certificate
-						Boolean isVerified = true;
-						if (isVerified) {
-							da.add(cert);
-							hasAddedNew = true;
-						} 
+						if (trustedKeys.containsKey(issuer)) {
+							Boolean isVerified =  Certificat.verifX509(cert, trustedKeys.get(issuer));
+							if (isVerified) {
+								da.add(cert);
+								hasAddedNew = true;
+							} 
+						}
 					}
 				}
+				//End condition for the synchronisation, when you're da is not updated you don't call synchronize anymore
 				if (hasAddedNew) {
-					//TODO start synchro
+					try {
+						synchronisation();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		}.start();
