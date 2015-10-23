@@ -9,8 +9,10 @@ import java.net.Socket;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
 
 
@@ -21,6 +23,7 @@ public class Equipement {
 	private KeyPair maCle; // Paire de clés de l’équipement
 	private X509Certificate monCert; // Certificat auto-signé
 
+	private HashMap<String, PublicKey> trustedKeys;
 	private ArrayList<X509Certificate> ca;
 	private ArrayList<X509Certificate> da;
 
@@ -31,8 +34,8 @@ public class Equipement {
 	private ObjectInputStream ois; // Flux évolué entrant
 	private OutputStream NativeOut; // Flux natif sortant
 	private ObjectOutputStream oos; // Flux évolué sortant
-	
-	private static final int INIT_PORT = 7777;
+
+	private static final int INIT_PORT = 7777; // Port de reconnaissance mutuelle
 
 
 	public Equipement (String nom, int port) throws Exception {
@@ -50,7 +53,7 @@ public class Equipement {
 		}
 
 		// Auto-certification de la clé publique
-		monCert = Certificat.buildSelfCert(monNom, maCle, 10);
+		monCert = Certificat.buildSelfCert(monNom, monPort, maCle, 10);
 		Certificat.verifX509(monCert, maCle.getPublic());
 
 		// Initialisation de CA et DA
@@ -59,7 +62,7 @@ public class Equipement {
 
 		// Initialisation du serveur d'écoute sur monPort
 		serverSocket = new ServerSocket(monPort);
-		
+
 		// Initialisation des flux
 		NativeIn = null; 
 		ois = null; 
@@ -101,7 +104,7 @@ public class Equipement {
 
 	public void initServer() throws IOException, ClassNotFoundException{
 		System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
-		
+
 		initServerSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisations
 
 		new Thread() {
@@ -125,7 +128,10 @@ public class Equipement {
 					// Vérification du CSR
 					if(Certificat.verifCSR(csr)){
 						System.out.println("L'équipement "+monNom+" vérifie la demande avec succès");
-
+						
+						// Ajout l'équipement dans trustedKeys
+						trustedKeys.put(csr.getSubject().getRDNs()[0].getFirst().getValue().toString(), csr.getPublicKey());
+						
 						System.out.println("L'équipement "+monNom+" génère et envoie la certification de la clé publique");
 
 						// Certification de la clé publique
@@ -136,15 +142,15 @@ public class Equipement {
 						// Emission du certificat
 						oos.writeObject(Certificat.x509toPEM(intermX509)); 
 						oos.flush();
-						
+
 						// Fermeture des flux evolues et natifs
 						ois.close();
 						oos.close(); 
 						NativeIn.close(); 
 						NativeOut.close();
-						
+
 						try {
-							serverSocket.close();
+							initServerSocket.close();
 						} catch (IOException e) {
 							// Do nothing
 						}
@@ -168,7 +174,7 @@ public class Equipement {
 		ois = new ObjectInputStream(NativeIn);
 
 		System.out.println("L'équipement "+monNom+" envoie la demande de certification de sa clé publique");
-		
+
 		// Création et envoi du CSR
 		String strCSR = Certificat.cSRtoPEM(Certificat.buildCSR(monCert.getSubjectX500Principal(), maCle));
 		oos.writeObject(strCSR); 
@@ -178,7 +184,7 @@ public class Equipement {
 		// Reception de la certification
 		String pemcert = (String) ois.readObject(); 
 		X509Certificate intermX509 = Certificat.pEMtoX509(pemcert);
-		
+
 		System.out.println("L'équipement "+monNom+" reçoie la certification de sa clé publique");
 
 		// Fermeture des flux evolues et natifs
@@ -189,8 +195,24 @@ public class Equipement {
 
 		// Fermeture de la connexion
 		socket.close(); 
-		
+
 		ca.add(intermX509);
+
+		synchronisation();
+	}
+
+	public void synchronisation() throws Exception{
+		ArrayList<String> cadaPEM = new ArrayList<String>();
+		for(X509Certificate c: ca){
+			cadaPEM.add(Certificat.x509toPEM(c));
+		}
+
+		for(X509Certificate c: da){
+			cadaPEM.add(Certificat.x509toPEM(c));
+		}
+		
+		
+		
 	}
 
 }
