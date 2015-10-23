@@ -75,6 +75,7 @@ public class Equipement {
 					serverSocket = new ServerSocket(monPort);
 
 					while (true) {
+						System.out.println("Synchronization request");
 						socket = serverSocket.accept();
 						NativeIn = socket.getInputStream(); 
 						ois = new ObjectInputStream(NativeIn); 
@@ -88,11 +89,6 @@ public class Equipement {
 						}
 						synchroServer(certs);
 					}
-					//					ois.close();
-					//					oos.close(); 
-					//					NativeIn.close(); 
-					//					NativeOut.close();
-					//					serverSocket.close();
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -101,6 +97,19 @@ public class Equipement {
 		};
 		listeningThread.start();
 
+	}
+
+	public void close_socket() {
+		try {
+			ois.close();
+			oos.close(); 
+			NativeIn.close();
+			NativeOut.close();
+			serverSocket.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
 	}
 
 	public void affichage_certs_issuer(ArrayList<X509Certificate> certs) {

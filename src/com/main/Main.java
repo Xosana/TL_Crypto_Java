@@ -98,6 +98,10 @@ public class Main {
 				System.out.println("Commande inconnue, utilisez 'help' pour plus d'informations");
 			}
 		}
+		
+		for (Equipement e: equipements) {
+			e.close_socket();
+		}
 	}
 
 	public static void startEquipementGui(Equipement e, ArrayList<Equipement> equipements) throws Exception {
@@ -159,5 +163,6 @@ public class Main {
 		e1.initServer();
 		e2.askCSR();
 		e1.synchronisation();
+		e2.synchronisation();
 	}
 }
