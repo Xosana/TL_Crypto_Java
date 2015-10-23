@@ -11,6 +11,7 @@ import java.security.*;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.Semaphore;
 
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
@@ -37,7 +38,9 @@ public class Equipement {
 
 	private static final int INIT_PORT = 7777; // Port de reconnaissance mutuelle
 	private static final String HOST = "localHost";
-
+	public static Semaphore serverInitialized = new Semaphore(0);
+	public static Semaphore hasTakenSynchroData = new Semaphore(0);
+	public static Semaphore hasTakenCertificate = new Semaphore(0);
 
 	public Equipement (String nom, int port) throws Exception {
 		// Constructeur de l’equipement identifié par nom
@@ -69,14 +72,18 @@ public class Equipement {
 			public void run() {
 				try {
 					serverSocket = new ServerSocket(monPort);
-					while (true) {
+					Boolean running = true;
+					while (running) {
+						if (synchroSocket.isClosed()) 
+							running = false;
 						synchroSocket = serverSocket.accept();
 						synchroNativeIn = synchroSocket.getInputStream(); 
 						synchroOis = new ObjectInputStream(synchroNativeIn); 
 						synchroNativeOut = synchroSocket.getOutputStream(); 
 						synchroOos = new ObjectOutputStream(synchroNativeOut);
-						
+
 						ArrayList<String> pemCerts = (ArrayList<String>) synchroOis.readObject();
+						//						hasTakenSynchroData.release();
 						ArrayList<X509Certificate> certs = new ArrayList<X509Certificate>() ;
 						for (String pemCert: pemCerts) {
 							certs.add(Certificat.pEMtoX509(pemCert));
@@ -108,16 +115,19 @@ public class Equipement {
 
 	public void affichage_certs_issuer(ArrayList<X509Certificate> certs) {
 		for (X509Certificate cert: certs) {
-			System.out.println(Certificat.getIssuer(cert));
+			String issuer = Certificat.getIssuer(cert);
+			String subject = Certificat.getSubject(cert);
+			System.out.println("{"+issuer+", Certificate["+issuer+"](PubKey("+subject+"))"+"}");
 		}
 	}
 
 	public void affichage_da() {
-		System.out.println("da count = " + da.size());
+		System.out.println("DA count = " + da.size());
 		affichage_certs_issuer(da);
 	}
 
 	public void affichage_ca() {
+		System.out.println("CA count = " + ca.size());
 		affichage_certs_issuer(ca);
 	}
 
@@ -147,6 +157,7 @@ public class Equipement {
 			public void run(){
 				try {						
 					ServerSocket initServerSocket = new ServerSocket(INIT_PORT); // Creation du ServerSocket sur un port spécifique aux initialisation
+					serverInitialized.release();
 					System.out.println("Initialisation de l'équipement "+monNom+" en tant que serveur");
 					Socket socket = initServerSocket.accept();
 
@@ -158,38 +169,39 @@ public class Equipement {
 
 					// Récupération du CSR
 					String pemCSR = (String) ois.readObject(); 
-					System.out.println("L'équipement "+monNom+" reçoit la demande");
+					//					System.out.println("L'équipement "+monNom+" reçoit la demande");
 
 
 					JcaPKCS10CertificationRequest csr = Certificat.pEMtoCSR(pemCSR);
 
 					// Vérification du CSR
 					if(Certificat.verifCSR(csr)){
-						System.out.println("L'équipement "+monNom+" vérifie la demande avec succès");
+						//						System.out.println("L'équipement "+monNom+" vérifie la demande avec succès");
 
 						// Ajout l'équipement dans trustedKeys
 						trustedKeys.put(csr.getSubject().getRDNs()[0].getFirst().getValue().toString(), csr.getPublicKey());
 
-						System.out.println("L'équipement "+monNom+" génère et envoie la certification de la clé publique");
+						//						System.out.println("L'équipement "+monNom+" génère et envoie la certification de la clé publique");
 
 						// Certification de la clé publique
 						X509Certificate intermX509 = Certificat.cSRtoX509(X500Name.getInstance(
 								monCert.getIssuerX500Principal().getEncoded()), csr, maCle.getPrivate(), 10);
 
-						System.out.println("L'équipement "+monNom+" envoie le certificat");
+						//						System.out.println("L'équipement "+monNom+" envoie le certificat");
 						// Emission du certificat
 						oos.writeObject(Certificat.x509toPEM(intermX509)); 
 						oos.flush();
 
 						// Fermeture des flux evolues et natifs
+						hasTakenCertificate.acquire();
 						ois.close();
 						oos.close(); 
 						NativeIn.close(); 
 						NativeOut.close();
-						
+
 						socket.close();
 						initServerSocket.close();
-
+						System.out.println("Socket serveur fermée par l'équipement " + getNom());
 					}
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -200,6 +212,8 @@ public class Equipement {
 	}
 
 	public void askCSR() throws Exception{
+		System.out.println("Demande de connexion par l'équipement" + getNom());
+		serverInitialized.acquire();	 //Attendre que l'équipement ait initialisé son "mode serveur"
 		Socket socket = new Socket(HOST, INIT_PORT); // Connection sur le port d'initialisation
 
 		// Création des flux natifs et évolués
@@ -220,12 +234,13 @@ public class Equipement {
 		X509Certificate intermX509 = Certificat.pEMtoX509(pemcert);
 
 		// Fermeture des flux evolues et natifs
+		hasTakenCertificate.release();
 		ois.close();
 		oos.close(); 
 		NativeIn.close(); 
 		NativeOut.close();
 		socket.close();
-		
+
 		synchronized(ca) {
 			ca.add(intermX509);
 		}
@@ -234,13 +249,18 @@ public class Equipement {
 	public void synchronisation() throws Exception{
 		ArrayList<String> cadaPEM = new ArrayList<String>();
 		ArrayList<Integer> portList = new ArrayList<Integer>();
-		for(X509Certificate c: ca){
-			cadaPEM.add(Certificat.x509toPEM(c));
-			portList.add(Certificat.getPort(c));
+
+		synchronized (ca) {
+			for(X509Certificate c: ca){
+				cadaPEM.add(Certificat.x509toPEM(c));
+				portList.add(Certificat.getPort(c));
+			}
 		}
 
-		for(X509Certificate c: da){
-			cadaPEM.add(Certificat.x509toPEM(c));
+		synchronized (da) {
+			for(X509Certificate c: da){
+				cadaPEM.add(Certificat.x509toPEM(c));
+			}
 		}
 
 		for(int i: portList){
@@ -258,11 +278,10 @@ public class Equipement {
 		oos.writeObject(cadaPEM); 
 		oos.flush();
 		// Fermeture des flux evolues et natifs
-//		oos.close(); 
-//		NativeOut.close();
-//
-//		// Fermeture de la connexion
-//		socket.close(); 
+		//			hasTakenSynchroData.acquire();
+		//			oos.close(); 
+		//			NativeOut.close();
+		//			socket.close(); 
 	}
 
 	//We receive an array of certificates, we check if we already have them
