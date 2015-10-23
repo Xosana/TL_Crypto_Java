@@ -9,6 +9,7 @@ import java.net.Socket;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
@@ -21,6 +22,7 @@ public class Equipement {
 	private KeyPair maCle; // Paire de clés de l’équipement
 	private X509Certificate monCert; // Certificat auto-signé
 
+	private HashMap<String, PublicKey> trustedKeys;
 	private ArrayList<X509Certificate> ca;
 	private ArrayList<X509Certificate> da;
 
@@ -32,7 +34,7 @@ public class Equipement {
 	private OutputStream NativeOut; // Flux natif sortant
 	private ObjectOutputStream oos; // Flux évolué sortant
 
-	private static final int INIT_PORT = 7777;
+	private static final int INIT_PORT = 7777; // Port de reconnaissance mutuelle
 
 
 	public Equipement (String nom, int port) throws Exception {
@@ -68,7 +70,7 @@ public class Equipement {
 			public void run() {
 				try {
 					serverSocket = new ServerSocket(monPort);
-					
+
 					while (true) {
 						socket = serverSocket.accept();
 						NativeIn = socket.getInputStream(); 
@@ -97,7 +99,7 @@ public class Equipement {
 		listeningThread.start();
 
 	}
-	
+
 	public void affichage_certs_issuer(ArrayList<X509Certificate> certs) {
 		String m;
 		for (X509Certificate cert: certs) {
@@ -160,6 +162,9 @@ public class Equipement {
 					if(Certificat.verifCSR(csr)){
 						System.out.println("L'équipement "+monNom+" vérifie la demande avec succès");
 
+						// Ajout l'équipement dans trustedKeys
+						trustedKeys.put(csr.getSubject().getRDNs()[0].getFirst().getValue().toString(), csr.getPublicKey());
+
 						System.out.println("L'équipement "+monNom+" génère et envoie la certification de la clé publique");
 
 						// Certification de la clé publique
@@ -179,7 +184,6 @@ public class Equipement {
 
 						try {
 							initServerSocket.close();
-							System.out.println("Server close " + getNom());
 						} catch (IOException e) {
 							// Do nothing
 						}
@@ -226,6 +230,22 @@ public class Equipement {
 		socket.close(); 
 
 		ca.add(intermX509);
+
+		synchronisation();
+	}
+
+	public void synchronisation() throws Exception{
+		ArrayList<String> cadaPEM = new ArrayList<String>();
+		for(X509Certificate c: ca){
+			cadaPEM.add(Certificat.x509toPEM(c));
+		}
+
+		for(X509Certificate c: da){
+			cadaPEM.add(Certificat.x509toPEM(c));
+		}
+
+
+
 	}
 
 	//We receive an array of certificates, we check if we already have them
