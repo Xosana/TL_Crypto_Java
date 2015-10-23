@@ -149,6 +149,7 @@ public class Main {
 		}		
 	}
 
+	// Méthode de reconnaissance mutuelle
 	public static void connect_equipments(Equipement e1, Equipement e2) throws Exception {
 		System.out.println("Reconnaissance mutuelle de l'équipement " + e1.getNom() +
 				" et de l'équipement " + e2.getNom());
